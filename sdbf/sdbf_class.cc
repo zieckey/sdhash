@@ -15,6 +15,53 @@
 #include <string>
 #include <iomanip>
 
+
+#define MILLISECOND_LOG
+
+void z_dbgtrace( const char* filename, const char* funcname, int lineno, const char* fmt, ... )
+{
+    char s[1024*128] = {0};
+
+    int millisec = 0;
+    (void)millisec;
+    time_t ctTime;
+#ifdef MILLISECOND_LOG
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    ctTime = tv.tv_sec;
+    millisec = tv.tv_usec/1000;
+#else
+    time( &ctTime );
+#endif
+    struct tm *pTime;
+    pTime = localtime( &ctTime );
+    int writen = snprintf(s, sizeof(s), "%4d/%.2d/%.2d %.2d:%.2d:%.2d"
+#ifdef MILLISECOND_LOG
+                " %0.3d"
+#endif
+                " %s:%s:%d - ",
+                pTime->tm_year + 1900, pTime->tm_mon + 1, pTime->tm_mday,
+                pTime->tm_hour, pTime->tm_min, pTime->tm_sec, 
+#ifdef MILLISECOND_LOG
+                millisec, 
+#endif
+                filename, funcname, lineno);
+
+    if ( writen <= 0 )
+    {
+        fprintf( stderr, "snprintf return error, errno=%d\n", errno );
+        return;
+    }
+    va_list ap;
+    va_start(ap,fmt);
+    int len = vsnprintf(s + writen, sizeof(s) - writen, fmt, ap);
+    (void)(len);
+    va_end(ap);
+    fprintf(stdout, "%s\n", s);
+}
+
+#define LogTrace(fmt, args...)  z_dbgtrace( __FILE__, __func__, __LINE__, fmt, ##args )
+
 /** 
     \internal
     Initialize static configuration object with sensible defaults.
@@ -160,6 +207,7 @@ sdbf::sdbf(FILE *in) {
     if( feof( in))
         throw -3 ; // end of file prematurely
     buffer[i] = 0;
+    LogTrace("read header=[%s]", buffer);
     sscanf( (char*)buffer, "%s %d %d", sdbf_magic, &version, &name_len);
     if( (strcmp( sdbf_magic, MAGIC_STREAM) && strcmp( sdbf_magic, MAGIC_DD)) || version != 3) {
         if (config->warnings)
@@ -172,6 +220,7 @@ sdbf::sdbf(FILE *in) {
     this->hashname = (char*)alloc_check( ALLOC_ZERO, name_len+2, "sdbf_from_stream", "this->hashname", ERROR_EXIT);
     read_cnt = fscanf( in, fmt, this->hashname);
     read_cnt = fscanf( in, ":%ld:%4s:%d:%d:%x:%d:%d", &(this->orig_file_size), hash_magic, &(this->bf_size), &(this->hash_count), &(this->mask), &(this->max_elem), &(this->bf_count));
+    LogTrace("orig_file_size=%ld hash_magic=%4s bf_size=%d hash_count=%d mask=%x max_elem=%d bf_count=%d", (this->orig_file_size), hash_magic, (this->bf_size), (this->hash_count), (this->mask), (this->max_elem), (this->bf_count));
     this->buffer = (uint8_t *)alloc_check( ALLOC_ZERO, this->bf_count*this->bf_size, "sdbf_from_stream", "this->buffer", ERROR_EXIT);
     // DD fork
     if( !strcmp( sdbf_magic, MAGIC_DD)) {
@@ -195,6 +244,7 @@ sdbf::sdbf(FILE *in) {
         sprintf( &fmt[1], "%ds", b64_len);
         b64 = (char*)alloc_check( ALLOC_ZERO, b64_len+2, "sdbf_from_stream", "b64", ERROR_EXIT);
         read_cnt = fscanf( in, fmt, b64);
+        LogTrace("b64_len=%d b64=[%s]", b64_len, b64);
 		free(this->buffer);
         this->buffer =(uint8_t*) b64decode( (char*)b64, (int)b64_len, &d_len);
         if( d_len != this->bf_count*this->bf_size) {
