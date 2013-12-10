@@ -4,10 +4,13 @@ sdbf/*.o
 sdbf/libsdbf.a
 sdbf/libsdbf.so
 base64/*.d
+base64/*.o
 external/project-config.jam.4
 external/project-config.jam.5
 external/project-config.jam.6
 external/project-config.jam.7
 lz4/*.d
+lz4/*.o
 sdbf/Makefile.bak
 sdhash-src/*.d
+sdhash-src/*.o

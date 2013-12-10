@@ -18,7 +18,9 @@ all : $(TARGET)
 $(TARGET) : $(OBJS)
 	g++ $(OBJS) $(LDFLAGS) -o sdhash
 
-
+init : 
+	$(MAKE) -f Makefile.original
+	
 %.o : %.cc
 	$(CXX) $(CFLAGS) $< -o $@
 
