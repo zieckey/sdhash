@@ -30,6 +30,8 @@ class sdbf {
     */
 
 public:
+    sdbf(); 
+
     /// to read formatted sdbfs from open file pointer
     sdbf(FILE *in); 
     /// to create new from a single file
@@ -40,6 +42,11 @@ public:
     sdbf(const char *name, char *str, uint32_t dd_block_size, uint64_t length, index_info *info);
     /// destructor
     ~sdbf(); 
+
+
+    /// to read formatted sdbfs from memory buffer
+    bool load_sdbf(const char* formatted_sdbf_buffer, size_t buffer_len);
+
 
     /// object name
     const char *name();  

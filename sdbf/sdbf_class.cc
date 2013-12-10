@@ -258,6 +258,101 @@ sdbf::sdbf(FILE *in) {
     compute_hamming();
     this->info=NULL;
 }
+/**
+    Reads an already generated sdbf from the memory buffer
+    No throws exceptions in any case
+    \return true if successfully loaded 
+    \param 
+*/
+bool sdbf::load_sdbf(const char* formatted_sdbf_buffer, size_t buffer_len) {
+
+    char *b64, fmt[64];
+    uint8_t  buffer[16*KB];
+    char sdbf_magic[16], hash_magic[8];
+    uint32_t colon_cnt, read_cnt, hash_cnt, b64_len;
+    int d_len;
+    uint32_t version, name_len;
+    uint64_t i;
+
+    if(!formatted_sdbf_buffer || !buffer_len) {
+      return false;
+    }
+
+    const char* readpp = formatted_sdbf_buffer;
+    const char* end    = formatted_sdbf_buffer + buffer_len;
+
+    for( i=0, colon_cnt=3; i<MAX_MAGIC_HEADER && i < buffer_len; i++) {
+        buffer[i] = *readpp++;
+		if (i==4 && strncmp((char*)buffer,"sdbf",4) )
+			throw -2;
+        if( buffer[i] == DELIM_CHAR) {
+            buffer[i] = 0x20;
+            colon_cnt--;
+            if( !colon_cnt)
+                break;
+        }
+    }
+    if(readpp >= end)
+        return false; // end of file prematurely
+
+    buffer[i] = 0;
+    LogTrace("read header=[%s]", buffer);
+    sscanf( (char*)buffer, "%s %d %d", sdbf_magic, &version, &name_len);
+    if( (strcmp( sdbf_magic, MAGIC_STREAM) && strcmp( sdbf_magic, MAGIC_DD)) || version != 3) {
+        if (config->warnings)
+            fprintf( stderr, "ERROR: Unsupported format '%s:%02d'. Expecting '%s:03' or '%s:03'\n", sdbf_magic, version, MAGIC_STREAM, MAGIC_DD);
+        return false; // unsupported format - caller should exit
+    }
+    fmt[0] = '%';
+    sprintf( fmt+1, "%dc", name_len);
+    this->filenamealloc=true;
+    this->hashname = (char*)alloc_check( ALLOC_ZERO, name_len+2, "sdbf_from_stream", "this->hashname", ERROR_EXIT);
+    read_cnt = sscanf( readpp, fmt, this->hashname);
+    readpp += read_cnt;
+    read_cnt = sscanf( readpp, ":%ld:%4s:%d:%d:%x:%d:%d", &(this->orig_file_size), hash_magic, &(this->bf_size), &(this->hash_count), &(this->mask), &(this->max_elem), &(this->bf_count));
+    readpp += read_cnt;
+    LogTrace("orig_file_size=%ld hash_magic=%4s bf_size=%d hash_count=%d mask=%x max_elem=%d bf_count=%d", (this->orig_file_size), hash_magic, (this->bf_size), (this->hash_count), (this->mask), (this->max_elem), (this->bf_count));
+    this->buffer = (uint8_t *)alloc_check( ALLOC_ZERO, this->bf_count*this->bf_size, "sdbf_from_stream", "this->buffer", ERROR_EXIT);
+    // DD fork
+    if( !strcmp( sdbf_magic, MAGIC_DD)) {
+        read_cnt = sscanf( readpp, ":%d", &(this->dd_block_size));
+        readpp += read_cnt;
+        this->elem_counts = (uint16_t *)alloc_check( ALLOC_ZERO, this->bf_count*sizeof(uint16_t), "sdbf_from_stream", "this->elem_counts", ERROR_EXIT);
+        for( i=0; i<this->bf_count; i++) {
+            read_cnt = sscanf( readpp, ":%2x:%344s", &hash_cnt, buffer);
+            readpp += read_cnt;
+            this->elem_counts[i] = (uint16_t)hash_cnt;
+            d_len = b64decode_into( buffer, 344, this->buffer + i*this->bf_size);
+            if( d_len != 256) {
+                if (config->warnings)
+                    fprintf( stderr, "ERROR: Unexpected decoded length for BF: %d. name: %s, BF#: %d\n", d_len, this->hashname, (int)i);
+                throw -2; // unsupported format - caller should exit
+            }
+        }
+    // Stream fork
+    } else {
+        read_cnt = sscanf( readpp, ":%d:", &(this->last_count));
+        readpp += read_cnt;
+        b64_len = this->bf_count*this->bf_size;
+        b64_len = 4*(b64_len/3 +1*(b64_len % 3 > 0 ? 1 : 0));
+        sprintf( &fmt[1], "%ds", b64_len);
+        b64 = (char*)alloc_check( ALLOC_ZERO, b64_len+2, "sdbf_from_stream", "b64", ERROR_EXIT);
+        read_cnt = sscanf( readpp, fmt, b64);
+        readpp += read_cnt;
+        LogTrace("b64_len=%d b64=[%s]", b64_len, b64);
+		free(this->buffer);
+        this->buffer =(uint8_t*) b64decode( (char*)b64, (int)b64_len, &d_len);
+        if( d_len != this->bf_count*this->bf_size) {
+            if (config->warnings)
+                fprintf( stderr, "ERROR: Incorrect base64 decoding length. Expected: %d, actual: %d\n", this->bf_count*this->bf_size, d_len);
+            free (b64); // cleanup in case of wanting to go on
+            return false; // unsupported format, caller should exit
+        }
+        free( b64);
+    }
+    compute_hamming();
+    this->info=NULL;
+}
 
 /**
     Destroys this sdbf
@@ -399,6 +494,10 @@ sdbf::clone_filter(uint32_t position) {
         return NULL;
     }
 }
+
+sdbf::sdbf() {
+    sdbf_create(NULL);
+}
         
 /** \internal
  * Create and initialize an sdbf structure ready for stream mode.
@@ -409,9 +508,11 @@ sdbf::sdbf_create(const char *name) {
     this->bf_size = config->bf_size;
     this->hash_count = 5;
     this->mask = config->BF_CLASS_MASKS[0];
+    this->max_elem = config->max_elem;
     this->bf_count = 1;
     this->last_count = 0;
     this->elem_counts= 0;
+    this->dd_block_size = 0;
     this->orig_file_size = 0;
     this->hamming = NULL;
     this->buffer = NULL;

@@ -76,7 +76,7 @@ sdbf_set::sdbf_set(const char *fname) {
 
 /** 
     Loads all sdbfs from a memory buffer into a new set
-    \param buffer - the sdbfs memory buffer
+    \param formatted_sdbf_buffer - the sdbfs memory buffer
 
 sdbf:03:12:README.alpha:1197:sha1:256:5:7ff:160:1:19:AAAAAAAAAAAAAEBAAgQAAAAAAAEQAQAAAAIAAAACAAAIAAAAAAAAAAAAAAAgEAEAAAAgJAAAABAQAACAAAAAAIAAIEAIIAIACJAAgAAAAIAEACIAIAAKAAAAAAAhAAAAAAAAAAIoAAAAAAAAIAAAgAAAAQAAACAAACAAAAAABQAAAAAAAAAgAABAAAQAICAgAAAAAAAAAQACAIAAAAAABoABAAAACAEAAAAAEEACQABAAAAEAAACAABAJAggAaAAAAABQAAAAAAAEAAAAAAAAAAAAAABBEAAgAAAAEAAAIAAAAQAAAAAAAAoEAAAAAAAAAgAAAEAAAAAAAAABAAAAA==
 sdbf:03:14:README.beta-ui:692:sha1:256:5:7ff:160:1:11:AAIAAAAAAAAIAEBAAEQAAAAAAAEQAAAAAAAAAAAAAAAAAAAAAgAAIAAAAAAAAAAAAAAADAAAABAQAAAAAAAAAIAIAAAEAAIAABAAAAAAAgAAAAIAIAAEAAAAAAABAAAAAAAAAAIAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAhAAAAAABAAAAABAAAAAAACAgAAAAAAAAAAAAAAQAAAAAAgABAAAAAAEAAAAAEAACQABAAAAAIAAAAAAABAAAAYAAABABAAAAAAAAEAAAAAAAAAAAAAAAAAAEAAAAAEAAAAAAAAAAAAAAAAAoEAAAAAAAAAoAAAAAAAAAAAAAAAAAAA==
@@ -85,22 +85,37 @@ sdbf:03:18:README.swig-python:859:sha1:256:5:7ff:160:1:15:AAAAwQAAAAACAgAIAAAAAg
 
 */
 
-sdbf_set::sdbf_set(const char *buffer, size_t buffer_length) {
-    //TODO
-//    if (buffer && buffer_length > 0) {
-//
-//        while( !feof( in)) {
-//            class sdbf *sdbfm = new sdbf( in);
-//            items.push_back( sdbfm);
-//
-//        }
-//    }
-//    // right now we cannot read-in an index.  
-//    // but we can set one later
-//    index = NULL;
-//    // we can create a bf-ptr-full vector
-//    bf_vector=new vector<bloom_filter*>();
-//    vector_init();
+sdbf_set::sdbf_set(const char *formatted_sdbf_buffer, size_t buffer_length) {
+    if (formatted_sdbf_buffer && buffer_length > 0) {
+        const char* readpp = formatted_sdbf_buffer;
+        const char* end    = formatted_sdbf_buffer + buffer_length;
+        while(readpp < end) {
+            const char* lineend = strchr(readpp, '\n');
+            const char* one_sdbf_buffer = readpp;
+            size_t one_sdbf_buffer_len = 0;
+            if (!lineend || lineend >= end) {
+                //end
+                one_sdbf_buffer_len = end - readpp;
+                readpp = end;
+            } else {
+                one_sdbf_buffer_len = lineend - readpp;
+                readpp = lineend + 1;
+            }
+            class sdbf *sdbfm = new sdbf();
+            if (sdbfm->load_sdbf(one_sdbf_buffer, one_sdbf_buffer_len)) {
+                items.push_back( sdbfm);
+            } else {
+                delete sdbfm;
+            }
+
+        }
+    }
+    // right now we cannot read-in an index.  
+    // but we can set one later
+    index = NULL;
+    // we can create a bf-ptr-full vector
+    bf_vector=new vector<bloom_filter*>();
+    vector_init();
 }
 
 sdbf_set::~sdbf_set() {
@@ -284,6 +299,7 @@ sdbf_set::compare_all(int32_t threshold) {
     \param threshold output threshold, defaults to 1
     \param sample_size size of bloom filter sample. send 0 for no sampling
     \returns std::string result listing
+
 */
 std::string
 sdbf_set::compare_to(sdbf_set *other,int32_t threshold,uint32_t sample_size) {
