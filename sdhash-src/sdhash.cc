@@ -19,6 +19,32 @@
 namespace fs = boost::filesystem;
 namespace po = boost::program_options;
 
+std::string read_file(const char* fname) {
+    int length;
+    char * buffer;
+
+    ifstream is;
+    is.open (fname, ios::binary );
+
+    // get length of file:
+    is.seekg (0, ios::end);
+    length = is.tellg();
+    is.seekg (0, ios::beg);
+
+    // allocate memory:
+    buffer = new char [length];
+
+    // read data as a block:
+    is.read (buffer,length);
+
+    is.close();
+
+    std::string r(buffer,length);
+    delete [] buffer;
+    return r;
+}
+
+
 // Global parameter configuration defaults
 sdbf_parameters_t sdbf_sys = {
     1,               // threads
@@ -66,6 +92,7 @@ int main( int argc, char **argv) {
                 ("deep,r", "generate SDBFs from directories and files")
                 ("gen-compare,g", "generate SDBFs and compare all pairs")
                 ("compare,c","compare all pairs in SDBF file, or compare two SDBF files to each other")
+                ("benchmark,B","compare two SDBF files to each other, and do a benchmark")
                 ("threshold,t",po::value<int32_t>(&sdbf_sys.output_threshold)->default_value(1),"only show results >=threshold")
                 ("block-size,b",po::value<int32_t>(&sdbf_sys.dd_block_size),"hashes input files in nKB blocks")
                 ("threads,p",po::value<uint32_t>(&sdbf_sys.thread_cnt)->default_value(1),"compute threads to use")
@@ -190,6 +217,7 @@ int main( int argc, char **argv) {
 	if (sdbf_sys.verbose)
 	    cerr << "done"<< endl;
     }
+
     // Perform all-pairs comparison
     if (vm.count("compare")) {
         if (inputlist.size()==1) {
@@ -220,6 +248,43 @@ int main( int argc, char **argv) {
             std::string resultlist;
             resultlist=set1->compare_to(set2,sdbf_sys.output_threshold, sdbf_sys.sample_size);
             cout << resultlist;
+        } else  {
+            cerr << "sdhash: ERROR: Comparison requires 1 or 2 arguments." << endl;
+            delete set1;
+            delete set2;
+            return -1;
+        }
+        int n;
+        if (set1!=NULL) {
+            for (n=0;n< set1->size(); n++) 
+                delete set1->at(n);
+            delete set1;
+        }
+        if (set2!=NULL) {
+            for (n=0;n< set2->size(); n++) 
+                delete set2->at(n);
+            delete set2;
+        }
+        return 0;
+    }
+    // Perform tow comparison
+    if (vm.count("benchmark")) {
+        if (inputlist.size()==2) {
+            try {
+                set1=new sdbf_set(inputlist[0].c_str());
+            } catch (int e) {
+                cerr << "sdhash: ERROR: Could not load SDBF file "<< inputlist[0] << ". Exiting"<< endl;
+                return -1;
+            }
+            // load second set for comparison
+            std::string resultlist;
+            std::string against_sdbf_buffer = read_file(inputlist[1].c_str());
+            int loop = 1;
+            for (int i = 0; i < loop; ++i) {
+                set2=new sdbf_set(against_sdbf_buffer.data(), against_sdbf_buffer.size());
+                resultlist=set1->compare_to(set2,sdbf_sys.output_threshold, sdbf_sys.sample_size);
+            cout << resultlist;
+            }
         } else  {
             cerr << "sdhash: ERROR: Comparison requires 1 or 2 arguments." << endl;
             delete set1;
