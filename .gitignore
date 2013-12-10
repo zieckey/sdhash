@@ -14,3 +14,5 @@ lz4/*.o
 sdbf/Makefile.bak
 sdhash-src/*.d
 sdhash-src/*.o
+c.sdbf
+sdhash
