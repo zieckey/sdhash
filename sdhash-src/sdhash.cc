@@ -10,20 +10,11 @@
 #include "sdhash.h"
 #include "version.h"
 
-#include <sys/time.h>
-
 #include "boost/filesystem.hpp"
 #include "boost/program_options.hpp"
 #include "boost/lexical_cast.hpp"
 
 #include <fstream>
-
-inline double utcsecond()
-{
-    struct timeval tv;
-    gettimeofday( &tv, NULL );
-    return (double)(tv.tv_sec) + ((double)(tv.tv_usec))/1000000.0f;
-}
 
 namespace fs = boost::filesystem;
 namespace po = boost::program_options;
@@ -226,15 +217,9 @@ int main( int argc, char **argv) {
                 cerr << "sdhash: ERROR: Could not load SDBF file "<< inputlist[1] << ". Exiting"<< endl;
                 return -1;
             }
-            int loop = 1;
             std::string resultlist;
-            double begin = utcsecond();
-            for (int k = 0; k < loop; k++) {
-                resultlist=set1->compare_to(set2,sdbf_sys.output_threshold, sdbf_sys.sample_size);
-            }
-            double end = utcsecond();
+            resultlist=set1->compare_to(set2,sdbf_sys.output_threshold, sdbf_sys.sample_size);
             cout << resultlist;
-            cout << " cost=" << end - begin << "s loop=" << loop << "\n";
         } else  {
             cerr << "sdhash: ERROR: Comparison requires 1 or 2 arguments." << endl;
             delete set1;

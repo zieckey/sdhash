@@ -75,12 +75,12 @@ class sdhashsrvHandler : virtual public sdhashsrvIf {
                     add_set(tmp_set,(char*)setname.c_str(),setid);
                     j++;
                     fprintf(stderr,"OK\n");
-                     if (fs::exists(itr->path().string()+".idx")) {
-                          bloom_filter *indextest=new bloom_filter(itr->path().string()+".idx");
-                          indexlist.push_back(indextest);
-                          tmp_set->index=indextest;
+	            if (fs::exists(itr->path().string()+".idx")) {
+		        bloom_filter *indextest=new bloom_filter(itr->path().string()+".idx");
+		        indexlist.push_back(indextest);
+		        tmp_set->index=indextest;
                         cerr << "-> Loaded index " <<  itr->path().string() << "..... OK" << endl;
-                      }
+		    }
                 } else {
                     fprintf(stderr,"File empty\n",itr->path().string().c_str());
                 }
@@ -278,12 +278,12 @@ class sdhashsrvHandler : virtual public sdhashsrvIf {
             fprintf(stderr,"File not found or empty: %s\n",filename.c_str());
             fail=1;
         }
-         // load index, attach to set
-         if (fs::exists(filename+".idx")) {
+	// load index, attach to set
+	if (fs::exists(filename+".idx")) {
             bloom_filter *indextest=new bloom_filter(filename+".idx");
-             indexlist.push_back(indextest);
+	    indexlist.push_back(indextest);
             tmp_set->index=indextest;
-         }
+	}
     } catch (int e) {
         if (e==-1) 
             fprintf(stderr,"File not accessible: %s\n",filename.c_str());
@@ -335,38 +335,38 @@ class sdhashsrvHandler : virtual public sdhashsrvIf {
             // search top
             info->search_first=true;
             info->search_deep=true;
-             break;
+	    break;
         case 2: 
             // search all
             info->search_first=false;
             info->search_deep=true;
-             break;
+	    break;
     }
     // if we are searching:
     if (searchIndex > 0 ) {
-         tmp=new sdbf_set();
-         info->indexlist=&indexlist;
-         info->setlist=&setlist;
-        info->index=NULL;         
+	tmp=new sdbf_set();
+	info->indexlist=&indexlist;
+	info->setlist=&setlist;
+        info->index=NULL;	
         cerr << "Searching " << indexlist.size() << " indexes." << endl; 
         int resID=createResultID("indexing");
-         add_request(resID,setname+" searching indexes");
+	add_request(resID,setname+" searching indexes");
         tmp=hash_stringlist(filenames,blocksize,processing_thread_count, info);
         string indexres=tmp->index_results();
-         add_result(resID,indexres);
-         delete tmp;
+	add_result(resID,indexres);
+	delete tmp;
         std::cout << "hashString request succeeds for "<< setname << std::endl;
         // do NOT save out
     } else {
-         // NOT indexing yet -- need other functions for breaking up sets and etc.
+	// NOT indexing yet -- need other functions for breaking up sets and etc.
         if (searchIndex == 0) {
             tmp=new sdbf_set();
-            info->index=NULL;         
-             info->indexlist=NULL;
-             info->setlist=NULL;
+            info->index=NULL;	
+	    info->indexlist=NULL;
+	    info->setlist=NULL;
             tmp=hash_stringlist(filenames,blocksize,processing_thread_count, info);
             if (!tmp->empty()) {
-             string tmp2=setname+".sdbf";
+	    string tmp2=setname+".sdbf";
             string savename=(fs::path(home_directory)/tmp2).string();
             char *fsetname;
             fsetname=(char*)malloc(setname.length()+1);
@@ -517,139 +517,139 @@ private:
 
     void
     rng_init() {
-         gen.seed(static_cast<unsigned int>(time(0)));
+	gen.seed(static_cast<unsigned int>(time(0)));
     }
 
     void
     add_result(int32_t resultID, string res) {
-         results.insert(pair<int32_t,string>(resultID,res));
-         endtime.insert(pair<int32_t,time_t>(resultID,time(0)));
+	results.insert(pair<int32_t,string>(resultID,res));
+	endtime.insert(pair<int32_t,time_t>(resultID,time(0)));
     }
 
     void
     add_request(int32_t resultID, string req) {
-         requests.insert(pair<int32_t,string>(resultID,req));
-         starttime.insert(pair<int32_t,time_t>(resultID,time(0)));
+	requests.insert(pair<int32_t,string>(resultID,req));
+	starttime.insert(pair<int32_t,time_t>(resultID,time(0)));
     }
 
     string    
     get_request(int32_t resultID) {
-         string result="";
-         std::map<int32_t,string>::iterator reqfound = requests.find(resultID);
-         if (reqfound!=requests.end() ) {
-             string idstr=boost::lexical_cast<string>(resultID);
-             result= reqfound->second;
-         }
-         return result;
+	string result="";
+	std::map<int32_t,string>::iterator reqfound = requests.find(resultID);
+	if (reqfound!=requests.end() ) {
+	    string idstr=boost::lexical_cast<string>(resultID);
+	    result= reqfound->second;
+	}
+	return result;
     }
 
     int32_t
     add_resultID(string user) {
-         boost::random::uniform_int_distribution<> dist(1,131070);
-         int32_t id = dist(gen);
-         users.insert(pair<string,int32_t>(user,id));
-         return id;
+	boost::random::uniform_int_distribution<> dist(1,131070);
+	int32_t id = dist(gen);
+	users.insert(pair<string,int32_t>(user,id));
+	return id;
     }
 
     int32_t
     make_hashsetID() {
-         boost::random::uniform_int_distribution<> dist(1,131070);
-         int32_t id = dist(gen);
-         return id;
+	boost::random::uniform_int_distribution<> dist(1,131070);
+	int32_t id = dist(gen);
+	return id;
     }
 
     string
     get_result(int32_t resultID) {
         string result="";
-         std::map<int32_t,string>::iterator resfound = results.find(resultID);
-         std::map<int32_t,time_t>::iterator startfound = starttime.find(resultID);
-         std::map<int32_t,time_t>::iterator endfound = endtime.find(resultID);
-         if (resfound!=results.end() && startfound != starttime.end() && endfound != endtime.end() )  {
-             time_t querytime = (endfound->second - startfound->second);
-             string timestr=boost::lexical_cast<string>(querytime);
-             string idstr=boost::lexical_cast<string>(resultID);
-             result= resfound->second; //+"query "+idstr+" time "+timestr + " seconds\n";
-         }
-         return result;
+	std::map<int32_t,string>::iterator resfound = results.find(resultID);
+	std::map<int32_t,time_t>::iterator startfound = starttime.find(resultID);
+	std::map<int32_t,time_t>::iterator endfound = endtime.find(resultID);
+	if (resfound!=results.end() && startfound != starttime.end() && endfound != endtime.end() )  {
+	    time_t querytime = (endfound->second - startfound->second);
+	    string timestr=boost::lexical_cast<string>(querytime);
+	    string idstr=boost::lexical_cast<string>(resultID);
+	    result= resfound->second; //+"query "+idstr+" time "+timestr + " seconds\n";
+	}
+	return result;
     }
 
     string
     get_result_duration(int32_t resultID) {
-         string result="";
-         std::map<int32_t,time_t>::iterator startfound = starttime.find(resultID);
-         std::map<int32_t,time_t>::iterator endfound = endtime.find(resultID);
-         if (startfound != starttime.end() && endfound != endtime.end() )  {
-             time_t querytime = (endfound->second - startfound->second);
-             string timestr=boost::lexical_cast<string>(querytime);
-             result= timestr + "s";
-         } else if (startfound != starttime.end() && endfound == endtime.end()) {
-             time_t now = time(0);
-             time_t querytime = (now - startfound->second);
-             string timestr=boost::lexical_cast<string>(querytime);
-             result= timestr + "s";
-         }    
-         return result;
+	string result="";
+	std::map<int32_t,time_t>::iterator startfound = starttime.find(resultID);
+	std::map<int32_t,time_t>::iterator endfound = endtime.find(resultID);
+	if (startfound != starttime.end() && endfound != endtime.end() )  {
+	    time_t querytime = (endfound->second - startfound->second);
+	    string timestr=boost::lexical_cast<string>(querytime);
+	    result= timestr + "s";
+	} else if (startfound != starttime.end() && endfound == endtime.end()) {
+	    time_t now = time(0);
+	    time_t querytime = (now - startfound->second);
+	    string timestr=boost::lexical_cast<string>(querytime);
+	    result= timestr + "s";
+	}    
+	return result;
     }
 
     string    
     get_result_status(int32_t resultID) {
     string result="";
-         std::map<int32_t,time_t>::iterator startfound = starttime.find(resultID);
-         std::map<int32_t,time_t>::iterator endfound = endtime.find(resultID);
-         if (startfound != starttime.end() && endfound != endtime.end() )  {
-             std::map<int32_t,string>::iterator resultfound= results.find(resultID);
-             string strresult=resultfound->second;
-             uint64_t rescount=0;
-             string::iterator it;
-             for ( it=strresult.begin() ; it < strresult.end(); it++ )
-             if (*it == '\n') rescount++;
-             result="complete ("+boost::lexical_cast<string>(rescount)+")";
-             
-         } else if (startfound != starttime.end() && endfound == endtime.end()) {
-             result="processing";
-         } else {
-             result="not found";
-         }
-         return result;
+	std::map<int32_t,time_t>::iterator startfound = starttime.find(resultID);
+	std::map<int32_t,time_t>::iterator endfound = endtime.find(resultID);
+	if (startfound != starttime.end() && endfound != endtime.end() )  {
+	    std::map<int32_t,string>::iterator resultfound= results.find(resultID);
+	    string strresult=resultfound->second;
+	    uint64_t rescount=0;
+	    string::iterator it;
+	    for ( it=strresult.begin() ; it < strresult.end(); it++ )
+	    if (*it == '\n') rescount++;
+	    result="complete ("+boost::lexical_cast<string>(rescount)+")";
+	    
+	} else if (startfound != starttime.end() && endfound == endtime.end()) {
+	    result="processing";
+	} else {
+	    result="not found";
+	}
+	return result;
     }
 
     /**
     * add set and its name to the set list.
     */
     int add_set( sdbf_set *set, char *name, int32_t setID) {
-         setcollection.insert(pair<int32_t,sdbf_set*>(setID,set));
-         if (set->index !=NULL)
-            setlist.push_back(set);
-         set->set_name((std::string)name);
-         set->vector_init();
-         return setID;
+	setcollection.insert(pair<int32_t,sdbf_set*>(setID,set));
+	if (set->index !=NULL)
+	   setlist.push_back(set);
+	set->set_name((std::string)name);
+	set->vector_init();
+	return setID;
     }
 
     /**
      * Returns the number of sets in our list
      */
     int get_set_count() {
-         return setcollection.size();
+	return setcollection.size();
     }
 
     /**
      * Returns the set associated with an id
      */
     sdbf_set *get_set( int32_t setID) {
-         if (setcollection.count(setID)) {
-             return setcollection.find(setID)->second;
-         } else
-             return NULL;
+	if (setcollection.count(setID)) {
+	    return setcollection.find(setID)->second;
+	} else
+	    return NULL;
     }
 
     /**
      * Returns the name (string) associates with a set
      */
     std::string get_set_name( int32_t setID) {
-         if( setcollection.count(setID))
-                  return setcollection.find(setID)->second->name();
-             else
-                  return NULL;
+	if( setcollection.count(setID))
+		return setcollection.find(setID)->second->name();
+	    else
+		return NULL;
     }
 
     /**
@@ -714,8 +714,8 @@ hash_index_stringlist(const std::vector<std::string> & filenames, string output_
                    cerr << "sdhash: ERROR cannot write to file " << output_index<< endl;
                    return -1;
                }
-                int32_t newid = make_hashsetID();
-                add_set(set1,(char*)output_nm.c_str(),newid);
+	       int32_t newid = make_hashsetID();
+	       add_set(set1,(char*)output_nm.c_str(),newid);
             }
         }
     }
@@ -793,7 +793,7 @@ int main(int argc, char **argv) {
     threadManager->start();
 
     boost::shared_ptr<TServer> server = boost::shared_ptr<TServer>
-         (new TThreadPoolServer(processor, serverTransport, transportFactory, protocolFactory, threadManager));
+	(new TThreadPoolServer(processor, serverTransport, transportFactory, protocolFactory, threadManager));
     handler->setServer(server);
     fprintf(stderr,"sdhash-srv listening on port %d, with %d worker threads.\n",conf->port, conf->maxconn);
     server->serve();

@@ -1,6 +1,6 @@
 BOOST_DIR = ../external
 #BOOST_DIR = /usr/local/boost
-THRIFT_DIR = /usr/include/thrift
+THRIFT_DIR = /usr/local/include/thrift
 GEN_DIR = ./gen-cpp
 SDBF_DIR = ../sdbf
 COMMON_DEF=-DHAVE_NETINET_IN_H -DHAVE_INTTYPES_H

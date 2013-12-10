@@ -3,3 +3,11 @@ sdbf/*.d
 sdbf/*.o
 sdbf/libsdbf.a
 sdbf/libsdbf.so
+base64/*.d
+external/project-config.jam.4
+external/project-config.jam.5
+external/project-config.jam.6
+external/project-config.jam.7
+lz4/*.d
+sdbf/Makefile.bak
+sdhash-src/*.d
