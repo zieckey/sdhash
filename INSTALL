@@ -1,0 +1,48 @@
+
+INSTALL for sdhash 
+
+recent versions of sdhash has been tested on the following platforms:
+
+Fedora Core 16 and 17  64 bit
+Ubuntu 12.04LTS 64 bit, 11.10 64 bit
+Mac OS X 10.7 Lion
+Mac OS X 10.6 Snow Leopard
+
+As of sdhash 3.1 we are moving to 64-bit capable processors
+in order to take advantage of dramatically faster comparison rates.
+On 64-bit processors without the popcnt instruction we fail down 
+to the original style of population count.
+
+Windows 7 32 and 64-bit 
+
+32-bit windows will be supported for a short amount of time via creative
+ifdefs.
+
+See INSTALL.macosx and BUILD.windows for non-linux build
+and installation notes.
+
+SHORT VERSION on Linux:
+
+Check for openssl-devel (fedora) or libssl-dev (ubuntu) package.  
+
+make
+make install (as root) 
+
+For the server:  
+
+Install apache thrift 0.8.0 - we have a .deb package for ubuntu.
+
+make server
+make install-server
+
+REQUIREMENTS
+
+openssl development libraries.
+pthreads development library
+g++ - will work all the way down to 4.2 -- but try to use later versions
+g++ - which includes -sse4.2 compatibilty.  
+
+ETC 
+
+See manpage for usage of sdhash.  By default we install into /usr/local/bin
+and this can be changed in the Makefile.

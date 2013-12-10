@@ -1,0 +1,47 @@
+Steps for sdhash-server on recent ubuntu variants:
+
+Download packages/thrift_0.8.0_amd64.deb and install:
+    sudo dpkg -i thrift_0.8.0_amd64.deb
+	sudo ldconfig
+
+    make
+    make server
+    run server to test
+
+
+Run server: 
+
+    sdhash-server/sdhash-srv --hashdir /home/sdbfs --sourcedir /home/sources
+
+Run user-interface:
+
+    python sdhash-ui/sdhashuiserver.py
+	
+
+User interface will default to 0.0.0.0:8080 -- this can be easily
+changed in sdhash-ui/cherrypy.conf.  Localhost-only works fine.
+
+The user interface code will connect to a sdhash-srv process
+at localhost:9090, to change that, edit sdhash-ui/serverui/config.py.
+
+Firewall at will, please!
+
+sdbf/  - Main sdbf library program files
+libsdbf.a  - sdbf library
+
+sdhash-src/  - sdhash standalone program 
+sdhash-server/ - sdhash-srv program and supporting files
+sdhash-ui/ - user interface to server
+
+man/ - man pages
+extra/ - example files and lcs and pcap
+
+external/ - inclusion of boost library stuff
+lz4/ - lz4 lossless compression library
+base64/ - stringencoders' base64 encoding
+
+Doxyfile - builds doc/ directory 
+
+swig/python - holds interface file and test.py program 
+
+sdhash.cfg.example - example sdhash.cfg file for sdhash
