@@ -26,8 +26,11 @@ public:
 	/// loads an sdbf_set from a file
 	sdbf_set(const char *fname); 
 
+	/// loads an sdbf_set from a memory buffer
+	sdbf_set(const char *buffer, size_t buffer_length); 
+
 	/// destructor
-        ~sdbf_set();
+    ~sdbf_set();
 
 	/// accessor method for individual hashes
 	class sdbf* at(uint32_t pos); 

@@ -74,6 +74,28 @@ sdbf_set::sdbf_set(const char *fname) {
     vector_init();
 }
 
+/** 
+    Loads all sdbfs from a memory buffer into a new set
+    \param buffer - the sdbfs memory buffer
+*/
+sdbf_set::sdbf_set(const char *buffer, size_t buffer_length) {
+    //TODO
+//    if (buffer && buffer_length > 0) {
+//
+//        while( !feof( in)) {
+//            class sdbf *sdbfm = new sdbf( in);
+//            items.push_back( sdbfm);
+//
+//        }
+//    }
+//    // right now we cannot read-in an index.  
+//    // but we can set one later
+//    index = NULL;
+//    // we can create a bf-ptr-full vector
+//    bf_vector=new vector<bloom_filter*>();
+//    vector_init();
+}
+
 sdbf_set::~sdbf_set() {
     if (bf_vector->size() > 0) {
 	for (int i=0;i<bf_vector->size();i++)
