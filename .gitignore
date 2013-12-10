@@ -1,0 +1,5 @@
+*.swp
+sdbf/*.d
+sdbf/*.o
+sdbf/libsdbf.a
+sdbf/libsdbf.so
