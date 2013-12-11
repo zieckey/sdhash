@@ -1,6 +1,39 @@
+New in version 3.3
+
+Major bugfix involving self-to-self block-based comparison scoring,
+we are now evenly discounting unfilled filters.
+
+Added --separator change option.
+
+Clarified indexing options/formats.
+
+Enabled support for multiple lists-of-files to hash.
+
+Now passing -Wall on gcc on Linux in main program.
+
+--------
+New in version 3.2.5
+
+Significant speedup of CPU comparisons via openMP threads.  Now 
+requiring openMP. 
+
+Program will automatically use the maximum number of cores/threads
+as given by openMP, on generation and comparison.
+--------
+New in version 3.2
+
+CUDA-accelerated GPU comparison program available - sdhash-gpu. 
+
+Changes to indexing to auto-generate indexes of larger, more 
+usable size (640MB) to search much more information.
+
+Small change to bloom filter fullness threshold for comparison,
+we now require 16 elements instead of 6.
+--------
 New in version 3.1
 
-New comparison code using the POPCNT instruction.  Marked speed improvements on intel, cache performance improvements on AMD.
+New comparison code using the POPCNT instruction.  Marked speed improvements 
+on intel, cache performance improvements on AMD.
 
 Refined the searching/index components, including auto-generation of reference
 set from large quantity of small files, search shortcuts, etc.  Indexes are

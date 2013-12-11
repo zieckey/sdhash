@@ -15,6 +15,8 @@ namespace po = boost::program_options;
 #include <fstream>
 #include <iterator>
 
+#include <omp.h>
+
 #include "sdhash-srv.h"
 using namespace std;
 
@@ -29,7 +31,7 @@ ostream& operator<<(ostream& os, const vector<T>& v)
 sdbf_parameters_t*
 read_args (int ac, char* av[], int quiet)
 {
-	sdbf_parameters_t *options=(sdbf_parameters_t*)malloc(sizeof(sdbf_parameters_t));
+    sdbf_parameters_t *options=(sdbf_parameters_t*)malloc(sizeof(sdbf_parameters_t));
 
     try {
         string config_file;
@@ -49,12 +51,12 @@ read_args (int ac, char* av[], int quiet)
         // config file
         po::options_description config("Configuration");
         config.add_options()
-			("port,P",po::value<uint32_t>()->default_value(9090),"server port")
-			//("host,H",po::value<string>()->default_value("localhost"),"server local address")
-			("threads,t",po::value<uint32_t>()->default_value(1),"compute threads to use")
-			("connections,c",po::value<uint32_t>()->default_value(20),"server connections provided")
-			("hashdir,d",po::value<string>()->default_value("."),"server hash directory")
-			("sourcedir,s",po::value<string>()->default_value("."),"server sources directory")
+            ("port,P",po::value<uint32_t>()->default_value(9090),"server port")
+            //("host,H",po::value<string>()->default_value("localhost"),"server local address")
+            ("threads,t",po::value<uint32_t>(),"set compute threads to use")
+            ("connections,c",po::value<uint32_t>()->default_value(20),"server connections provided")
+            ("hashdir,d",po::value<string>()->default_value("."),"server hash directory")
+            ("sourcedir,s",po::value<string>()->default_value("."),"server sources directory")
             ;
 
         po::options_description cmdline_options;
@@ -88,52 +90,51 @@ read_args (int ac, char* av[], int quiet)
         }
     
         if (vm.count("help")) {
-            cout << visible << "\n";
+            cout << visible << endl;
             return 0;
         }
 
         if (vm.count("version")) {
-            cout << "sdhash-srv 2.1beta\n";
+            cout << "sdhash-srv 2.1beta" << endl;
             return 0;
         }
 
-        if (vm.count("threads")) {
-			if (!quiet)
-				cout << "Processing threads available for use: " << vm["threads"].as< uint32_t >() << "\n";
-			options->thread_cnt=vm["threads"].as<uint32_t>();
+        if (vm.count("threads") && !vm.count("auto-threads")) {
+            if (!quiet)
+                cout << "Processing threads available for use: " << vm["threads"].as< uint32_t >() << endl;
+            options->thread_cnt=vm["threads"].as<uint32_t>();
+            omp_set_num_threads(options->thread_cnt);
+        } else {
+            options->thread_cnt= omp_get_max_threads();
+            if (!quiet)
+                cout << "Processing threads available for use: " << options->thread_cnt << endl;
         }
 
         if (vm.count("connections")) {
-			if (!quiet)
-				cout << "Max connections allowed: " << vm["connections"].as< uint32_t >() << "\n";
-			options->maxconn=vm["connections"].as<uint32_t>();
+            if (!quiet)
+                cout << "Max connections allowed: " << vm["connections"].as< uint32_t >() << endl;
+            options->maxconn=vm["connections"].as<uint32_t>();
         }
-		// Ignore option host for now.
-        //if (vm.count("host")) {
-			//if (!quiet)
-				//cout << "Server hostname : " << vm["host"].as< string >() << "\n";
-			//options->host=new string(vm["host"].as<string>());
-        //}
         if (vm.count("port")) {
-			if (!quiet)
-				cout << "Server port: " << vm["port"].as< uint32_t >() << "\n";
-			options->port=vm["port"].as<uint32_t>();
+            if (!quiet)
+                cout << "Server port: " << vm["port"].as< uint32_t >() << endl;
+            options->port=vm["port"].as<uint32_t>();
         }
         if (vm.count("hashdir")) {
-			if (!quiet)
-				cout << "Server home directory: " << vm["hashdir"].as< string >() << "\n";
-			options->home=new string(vm["hashdir"].as<string>());
+            if (!quiet)
+                cout << "Server home directory: " << vm["hashdir"].as< string >() << endl;
+            options->home=new string(vm["hashdir"].as<string>());
         }
         if (vm.count("sourcedir")) {
-			if (!quiet)
-				cout << "Server sources directory: " << vm["sourcedir"].as< string >() << "\n";
-			options->sources=new string(vm["sourcedir"].as<string>());
+            if (!quiet)
+                cout << "Server sources directory: " << vm["sourcedir"].as< string >() << endl;
+            options->sources=new string(vm["sourcedir"].as<string>());
         }
 
     }
     catch(exception& e)
     {
-        cout << e.what() << "\n";
+        cout << e.what() << endl;
         return NULL;
     }    
     return options;

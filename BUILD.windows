@@ -1,3 +1,7 @@
+Note:  These are building instructions for sdhash on windows,
+please use the executables we provide instead, as this is
+very annoying to do by hand.  
+
 To build/link sdhash on visual studio (very, very alpha.)
 
 I have tried this on: windows 7/x64, visual studio 2010 pro.

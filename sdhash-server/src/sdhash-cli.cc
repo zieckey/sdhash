@@ -12,7 +12,7 @@
 #include "boost/lexical_cast.hpp"
 #include <boost/filesystem.hpp>
 #include <fstream>
-
+#include <iostream>
 #include "../sdhash-src/version.h"
 
 #include "sdhashsrv.h"
@@ -78,17 +78,16 @@ int main( int argc, char **argv) {
                 ("export,e","export SDBFs to file <N> <file>.")
                 ("results,r",po::value<int32_t>(&resultID),"retrieve result by ID")
                 ("results-list","retrieve results list")
-                ("type,u",po::value<std::string>(&user_name),"type to store or retrieve results under")
+                ("type",po::value<std::string>(&user_name),"result type, default|indexing|web")
                 ("show-set-data,d",po::value<int32_t>(&resultID),"retrieve result by ID")
                 ("show-set-names,n",po::value<int32_t>(&resultID),"retrieve result by ID")
-                ("name",po::value<std::string>(&input_name),"declare set name")
                 ("threshold,t",po::value<int32_t>(&sdbf_sys.output_threshold)->default_value(1),"only show results >=threshold")
                 ("block-size,b",po::value<uint32_t>(&sdbf_sys.dd_block_size),"hashes input files in nKB blocks")
                 ("sample-size,s",po::value<uint32_t>(&sdbf_sys.sample_size)->default_value(0),"sample N filters for comparisons")
+                ("name",po::value<std::string>(&input_name),"declare set name")
                 ("index","generate indexes while hashing")
-                ("search-all","match at file level, all matching sets")
-                ("search-first","match at file level, first set match")
-                ("warnings,w","turn on warnings")
+                ("index-search","match indexes at set level")
+                ("verbose","turn on warnings")
                 ("version","show version info")
                 ("help,h","produce help message")
             ;
@@ -114,59 +113,56 @@ int main( int argc, char **argv) {
 
         std::ifstream ifs(config_file.c_str());
         if (vm.count("help")) {
-            cout << VERSION_INFO << ", rev " << REVISION << endl;
-            cout << "Usage: sdhash-cli <options> <source files>|<hash files>"<< endl;
-            cout << config << endl;
+            std::cout << VERSION_INFO << ", rev " << REVISION << std::endl;
+            std::cout << "Usage: sdhash-cli <options> <source files>|<hash files>"<< std::endl;
+            std::cout << config << std::endl;
             return 0;
         }
 
         if (vm.count("version")) {
-            cout << VERSION_INFO << ", rev " << REVISION << endl;
-            cout << "       http://sdhash.org, license Apache v2.0" << endl;
+            std::cout << VERSION_INFO << ", rev " << REVISION << std::endl;
+            std::cout << "       http://sdhash.org, license Apache v2.0" << std::endl;
             return 0;
         }
         if (vm.count("warnings")) {
             sdbf_sys.warnings = 1;
         }
-	if (vm.count("host")) {
-	    sdbf_sys.hostname=(char*)hostname.c_str();
-	}
-        if (vm.count("index") && !vm.count("name")) {
-            cerr << "sdhash:  ERROR: indexing requires base setname" << endl;
-            return -1;
-        }
-	if (vm.count("import"))
-	    sdbf_sys.options|=MODE_IMPORT;
-	if (vm.count("export"))
-	    sdbf_sys.options|=MODE_EXPORT;
-	if (vm.count("list"))
-	    sdbf_sys.options|=MODE_LIST;
-	if (vm.count("show-set-names"))
-	    sdbf_sys.options|=MODE_DISP;
-	if (vm.count("show-set-data"))
-	    sdbf_sys.options|=MODE_CONTENT;
-	if (vm.count("compare"))
-	    sdbf_sys.options|=MODE_COMP;
-	if (vm.count("results")) {
-	    sdbf_sys.options|=MODE_RESULT;
-	    sdbf_sys.resultid=resultID;
-	}
-	if (vm.count("results-list")) {
-	    sdbf_sys.options|=MODE_RESULT;
-            if (vm.count("username"))
-                sdbf_sys.username=(char*)user_name.c_str();
-	    sdbf_sys.resultid=0;
-	}
-	if (vm.count("username")) {
-	    sdbf_sys.username=(char*)user_name.c_str();
-	}
-	if (vm.count("search-all") || vm.count("search-first")) {
-	    sdbf_sys.options|=MODE_HASH;
-	}
+    if (vm.count("host")) {
+        sdbf_sys.hostname=(char*)hostname.c_str();
     }
-    catch (std::exception &e)
-    {
-        cout << e.what() << "\n";
+    if (vm.count("import"))
+        sdbf_sys.options|=MODE_IMPORT;
+    if (vm.count("export"))
+        sdbf_sys.options|=MODE_EXPORT;
+    if (vm.count("list"))
+        sdbf_sys.options|=MODE_LIST;
+    if (vm.count("show-set-names"))
+        sdbf_sys.options|=MODE_DISP;
+    if (vm.count("show-set-data"))
+        sdbf_sys.options|=MODE_CONTENT;
+    if (vm.count("compare"))
+        sdbf_sys.options|=MODE_COMP;
+    if (vm.count("results")) {
+        sdbf_sys.options|=MODE_RESULT;
+        sdbf_sys.resultid=resultID;
+    }
+    if (vm.count("results-list")) {
+        sdbf_sys.options|=MODE_RESULT;
+            if (vm.count("type"))
+                sdbf_sys.username=(char*)user_name.c_str();
+        sdbf_sys.resultid=0;
+    }
+    if (vm.count("type")) {
+        sdbf_sys.username=(char*)user_name.c_str();
+    }
+    if (vm.count("index-search")) {
+        sdbf_sys.options|=MODE_HASH;
+        if (sdbf_sys.dd_block_size == 0);
+            sdbf_sys.dd_block_size=16;
+    }
+
+    } catch (std::exception &e) {
+        std::cout << e.what() << "\n";
         return 0;
     }
 
@@ -176,17 +172,19 @@ int main( int argc, char **argv) {
     boost::shared_ptr<TProtocol> protocol(new TBinaryProtocol(transport));
     sdhashsrvClient client(protocol);
     if (sdbf_sys.options == 0 && vm.count("input-files")) {
-	sdbf_sys.options|=MODE_HASH;
-	if (!vm.count("name")) {
-            cerr << "SDHASH: hashset must be named with --name " << endl;
-	    return -1;
-	}	
+        sdbf_sys.options|=MODE_HASH;
+        if (vm.count("index-search")) {
+            input_name = "searching"; 
+        } else if (!vm.count("name")) {
+            cerr << "SDHASH: hashset must be named with --name " << std::endl;
+            return -1;
+        }    
     }
     if (sdbf_sys.options == 0) {
-        cout << VERSION_INFO << ", rev " << REVISION << endl;
-        cout << "Usage: sdhash-cli <options> <source files>|<hash files>"<< endl;
-        cout << config << endl;
-	return 0;
+        std::cout << VERSION_INFO << ", rev " << REVISION << std::endl;
+        std::cout << "Usage: sdhash-cli <options> <source files>|<hash files>"<< std::endl;
+        std::cout << config << std::endl;
+    return 0;
     }
     try {
         transport->open();
@@ -206,41 +204,46 @@ int main( int argc, char **argv) {
                 client.displayContents(result,resultID);
                 break;
             case MODE_COMP:
-		if (inputlist.size()==1) {
+                if (inputlist.size()==1) {
                     int32_t newid=client.createResultID(sdbf_sys.username);
-		    int32_t set1id=boost::lexical_cast<int32_t>(inputlist[0]);
+                    int32_t set1id=boost::lexical_cast<int32_t>(inputlist[0]);
                     client.compareAll(set1id,sdbf_sys.output_threshold,newid);
-                    std::cout << "Request name " << sdbf_sys.username <<", id: "<< newid << endl;
+                    std::cout << "Request name " << sdbf_sys.username <<", id: "<< newid << std::endl;
                 } else if (inputlist.size()==2) {
                     int32_t newid=client.createResultID(sdbf_sys.username);
-		    int32_t set1id=boost::lexical_cast<int32_t>(inputlist[0]);
-		    int32_t set2id=boost::lexical_cast<int32_t>(inputlist[1]);
-                     client.compareTwo(set1id,set2id,sdbf_sys.output_threshold,sdbf_sys.sample_size,newid);
-                    std::cout << "Request name " << sdbf_sys.username <<", id: "<< newid << endl;
+                    int32_t set1id=boost::lexical_cast<int32_t>(inputlist[0]);
+                    int32_t set2id=boost::lexical_cast<int32_t>(inputlist[1]);
+                    client.compareTwo(set1id,set2id,sdbf_sys.output_threshold,sdbf_sys.sample_size,newid);
+                    std::cout << "Request name " << sdbf_sys.username <<", id: "<< newid << std::endl;
                 }
                 break;
             case MODE_IMPORT:
-		if (inputlist.size()==1) {
-                    resultvalue=client.loadSet(inputlist[0].c_str(),-1);
-		}
+                if (inputlist.size()==1) {
+                            resultvalue=client.loadSet(inputlist[0].c_str(),-1);
+                }
                 break;
             case MODE_INFILE:
-		hashsetID = client.createHashsetID();
-            //    client.hashList(argv[file_start],sdbf_sys.dd_block_size,hashsetID,(sdbf_sys.options2 & MODE_INDEX) );
+                hashsetID = client.createHashsetID();
+                //    client.hashList(argv[file_start],sdbf_sys.dd_block_size,hashsetID,(sdbf_sys.options2 & MODE_INDEX) );
                 result="Hashing in progress for "+(string)argv[file_start];
                 break;
             case MODE_HASH:
-		// change to hash_string to make windows compat
-		hashsetID = client.createHashsetID();
-		if (vm.count("index"))
+                // change to hash_string to make windows compat
+                hashsetID = client.createHashsetID();
+                if (vm.count("index")) {
                     client.hashString(input_name,inputlist,sdbf_sys.dd_block_size,hashsetID,-1);
-		else if (vm.count("search-first"))
-                    client.hashString(input_name,inputlist,sdbf_sys.dd_block_size,hashsetID,1);
-		else if (vm.count("search-all"))
-                    client.hashString(input_name,inputlist,sdbf_sys.dd_block_size,hashsetID,2);
-		else  // plain
+                    result="Hashing in progress for "+input_name+".sdbf";
+                }
+                else if (vm.count("index-search")) {
+                    int resultID= client.createResultID("indexing");
+cout << sdbf_sys.dd_block_size;
+                    client.hashString(input_name,inputlist,sdbf_sys.dd_block_size,resultID,3);
+                    result="Searching in progress, result id: "+boost::lexical_cast<string>(resultID);
+                }
+                else { // plain 
                     client.hashString(input_name,inputlist,sdbf_sys.dd_block_size,hashsetID,0);
-                result="Hashing in progress for "+input_name+".sdbf";
+                    result="Hashing in progress for "+input_name+".sdbf";
+                }
                 break;
             case MODE_EXPORT:
                 if (file_cnt == 2) {
@@ -263,14 +266,14 @@ int main( int argc, char **argv) {
         transport->close();
         if (result.length()==0) {
              if (resultvalue==-1) {
-                cout << "ERROR: Command failed" << endl;
+                std::cout << "ERROR: Command failed" << std::endl;
             } else if (resultvalue==-2) {
-                //cout << "No results found" << endl;
+                //std::cout << "No results found" << std::endl;
             } else{
-                cout << "Set "<< resultvalue << " created" << endl;
+                std::cout << "Set "<< resultvalue << " created" << std::endl;
             }
         } else {
-            cout << result << endl;
+            std::cout << result << std::endl;
         }
     } catch (TException &tx) {
         printf("Couldn't connect: %s\n", tx.what());

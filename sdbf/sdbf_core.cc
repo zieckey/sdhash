@@ -91,58 +91,25 @@ sdbf::gen_chunk_hash( uint8_t *file_buffer, const uint64_t chunk_pos, const uint
     uint32_t bf_count = this->bf_count;
     uint32_t last_count = this->last_count;
     uint8_t *curr_bf = this->buffer + (bf_count-1)*(this->bf_size);
-    uint32_t num_indexes=0 ;
-    if (this->info->setlist != NULL) 
-    num_indexes=this->info->setlist->size();
-    uint32_t hashes[161][5];
-    uint32_t hashindex = 0;
-    vector<uint32_t> match (num_indexes);
-    reset_indexes(&match);
-    uint32_t match_total= 0;
     for( i=0; i<chunk_size-config->pop_win_size; i++) {
         if( chunk_scores[i] > config->threshold) {
             // ADD to INDEX
-        SHA1( file_buffer+chunk_pos+i, config->pop_win_size, (uint8_t *)sha1_hash);
-        uint32_t bits_set = bf_sha1_insert( curr_bf, 0, (uint32_t *)sha1_hash);
-        // Avoid potentially repetitive features
-        if( !bits_set)
-            continue;
-            //if ((i % 4 == 0) && num_indexes) {
-        if ((last_count % 4 == 0) && num_indexes) {
-                hashes[hashindex][0]=sha1_hash[0]; hashes[hashindex][1]=sha1_hash[1]; hashes[hashindex][2]=sha1_hash[2]; hashes[hashindex][3]=sha1_hash[3]; hashes[hashindex][4]=sha1_hash[4];
-        bool any=this->check_indexes((uint32_t*)hashes[hashindex],&match);
-        if (any)  {
-           hashindex++;
-        }
-        if (hashindex >=160) 
-           hashindex=160;  // no more than N matches per chunk?
-            } 
-            if (this->info->index) 
-                this->info->index->insert_sha1((uint32_t*)sha1_hash);
+            SHA1( file_buffer+chunk_pos+i, config->pop_win_size, (uint8_t *)sha1_hash);
+            uint32_t bits_set = bf_sha1_insert( curr_bf, 0, (uint32_t *)sha1_hash);
+            // Avoid potentially repetitive features
+            if( !bits_set)
+                continue;
+            if (this->info!=NULL)
+                if (this->info->index) 
+                    this->info->index->insert_sha1((uint32_t*)sha1_hash);
             last_count++;
             if( last_count == this->max_elem) {
                 curr_bf += this->bf_size;
                 bf_count++;
                 last_count = 0;
-                for (int n=0;n<num_indexes;n++) {
-                   if (match.at(n) >= _FP_THRESHOLD) {
-                       vector<uint32_t> match2(this->info->setlist->at(n)->filter_count()+1);
-                       this->reset_indexes(&match2);
-                       for (int j=0;j<hashindex;j++) {
-                           match_total+=this->check_smaller_indexes((uint32_t*)hashes[j],&match2,this->info->setlist->at(n)->bf_vector);
-                       }
-                       print_smaller_indexes(_FP_THRESHOLD,&match2,this->info->setlist->at(n)->bf_vector,bf_count-1,this->info->setlist->at(n)->index,this->info->basename);
-                       if (this->info->search_first) 
-                            break;
-                    }
-                }
-                hashindex=0;
-                reset_indexes(&match);
             } 
         }
     }
-    if (config->warnings)
-    cerr << this->name() << " " << match_total << " hits" << endl;
     this->bf_count = bf_count;
     this->last_count = last_count;//
 }
@@ -160,8 +127,9 @@ sdbf::gen_block_hash( uint8_t *file_buffer, uint64_t file_size, const uint64_t b
     uint32_t  max_offset = (rem > 0) ? rem : block_size;
     uint32_t hashes[193][5];
     uint32_t num_indexes= 0;
-    if (hashto->info->setlist != NULL) 
-    num_indexes=hashto->info->setlist->size();
+    if (hashto->info != NULL)
+        if (hashto->info->setlist != NULL) 
+            num_indexes=hashto->info->setlist->size();
     vector<uint32_t> match (num_indexes);
     hashto->reset_indexes(&match);
     int hashindex=0;
@@ -174,16 +142,17 @@ sdbf::gen_block_hash( uint8_t *file_buffer, uint64_t file_size, const uint64_t b
                 if( !bits_set)
                     continue; 
                 if (num_indexes == 0) {
-                    if (hashto->info->index) 
-                        hashto->info->index->insert_sha1((uint32_t*)sha1_hash);
+                    if (hashto->info !=NULL)
+                        if (hashto->info->index) 
+                            hashto->info->index->insert_sha1((uint32_t*)sha1_hash);
                 } else {
                     if (hash_cnt % 4 ==0) {
                         hashes[hashindex][0]=sha1_hash[0]; hashes[hashindex][1]=sha1_hash[1]; hashes[hashindex][2]=sha1_hash[2]; hashes[hashindex][3]=sha1_hash[3]; hashes[hashindex][4]=sha1_hash[4];
                         bool any=hashto->check_indexes((uint32_t*)hashes[hashindex], &match);
                         if (any) 
                            hashindex++;
-            if (hashindex >=192) 
-               hashindex=192;  // no more than N matches per chunk
+                        if (hashindex >=192) 
+                           hashindex=192;  // no more than N matches per chunk
                     }
                 }
                 hash_cnt++;
@@ -191,23 +160,11 @@ sdbf::gen_block_hash( uint8_t *file_buffer, uint64_t file_size, const uint64_t b
                     allowed--;
         }
     }
-    // search indexes if necessary
-    uint32_t count=hashto->info->setlist->size();
-    uint32_t tally=0;
-    for (int m=0;m<count;m++) {
-    if (match.at(m) >=_FP_THRESHOLD) {
-        vector<uint32_t> match2 (hashto->info->setlist->at(m)->bf_vector->size());
-        hashto->reset_indexes(&match2);
-        for (int j=0;j<hashindex;j++) {
-        tally+=hashto->check_smaller_indexes((uint32_t*)hashes[j], &match2,hashto->info->setlist->at(m)->bf_vector);
-        }
-        hashto->print_smaller_indexes(_FP_THRESHOLD,&match2,hashto->info->setlist->at(m)->bf_vector,block_num,hashto->info->setlist->at(m)->index,hashto->info->basename);
-        if (hashto->info->search_first) 
-            break;
-    }
-    }
-    if (tally > 0 && config->warnings) 
-    cerr << hashto->name() << "[" << block_num << "] "<<tally<< " hits"<< endl;
+    if (num_indexes > 0 && hashto->info->search_first==false && hashto->info->search_deep==false) {
+        // set level only for plug into assistance
+        hashto->print_indexes(_FP_THRESHOLD,&match,block_num);
+
+    } 
     hashto->reset_indexes(&match);
     hashto->elem_counts[block_num] = hash_cnt; 
 }
@@ -219,7 +176,7 @@ void
 sdbf::gen_chunk_sdbf( uint8_t *file_buffer, uint64_t file_size, uint64_t chunk_size) {
     assert( chunk_size > config->pop_win_size);
     
-    uint32_t i, k, sum, allowed;
+    uint32_t i, k, sum;
     int32_t score_histo[66];  // Score histogram 
     uint64_t buff_size = ((file_size >> 11) + 1) << 8; // Estimate sdbf size (reallocate later)
     buff_size = (buff_size < 256) ? 256 : buff_size;                // Ensure min size
@@ -244,7 +201,7 @@ sdbf::gen_chunk_sdbf( uint8_t *file_buffer, uint64_t file_size, uint64_t chunk_s
                 break;
             sum += score_histo[k];
         }
-        allowed = this->max_elem-sum;
+        //allowed = this->max_elem-sum;
         gen_chunk_hash( file_buffer, chunk_pos, chunk_scores, chunk_size);
     } 
     if( rem > 0) {
@@ -280,7 +237,6 @@ sdbf::thread_gen_block_sdbf( void *task_param) {
     uint64_t file_size = hashtask->file_size;
     
     uint64_t qt = file_size/block_size;
-    uint64_t rem = file_size % block_size;
 
     uint64_t chunk_pos = 0;
     uint16_t *chunk_ranks = (uint16_t *)alloc_check( ALLOC_ONLY, (block_size)*sizeof( uint16_t), "gen_block_sdbf", "chunk_ranks", ERROR_EXIT);
@@ -297,7 +253,6 @@ sdbf::thread_gen_block_sdbf( void *task_param) {
             sum += score_histo[k];
         }
         allowed = config->max_elem_dd-sum;
-//cerr << "histo calc sum " << sum << " allowed "<< allowed <<" maxdd" << config->max_elem_dd << endl;
         gen_block_hash( buffer, file_size, i, chunk_scores, block_size, hashtask->sdbf, 0, k, allowed);
     } 
     free( chunk_ranks);
@@ -313,7 +268,7 @@ sdbf::gen_block_sdbf_mt( uint8_t *file_buffer, uint64_t file_size, uint64_t bloc
         
     blockhash_task_t *tasks = (blockhash_task_t *) alloc_check( ALLOC_ONLY, thread_cnt*sizeof( blockhash_task_t), "gen_block_sdbf_mt", "tasks", ERROR_EXIT);
     boost::thread *hash_pool[MAX_THREADS];
-    int t;
+    uint32_t t;
     for( t=0; t<thread_cnt; t++) {
         tasks[t].tid = t;
         tasks[t].tcount = thread_cnt;
@@ -347,33 +302,16 @@ sdbf::gen_block_sdbf_mt( uint8_t *file_buffer, uint64_t file_size, uint64_t bloc
     free(tasks);
 }
 
-/**
- * Threading envelope for sdbf_max_score
- */ 
-void *
-sdbf::thread_sdbf_max_score( void *task_param) {
-    sdbf_task_t *task = (sdbf_task_t *)task_param;
-    uint32_t i;
-    while( 1 ) {
-        task->sem_start.wait();
-        if (task->done)
-            break;
-        sdbf_max_score( (sdbf_task_t *)task, FLAG_OFF);
-        task->sem_end.post();
-    }
-    return 0;
-}
 
 /**
  * Calculates the score between two digests
  */
 int 
-sdbf::sdbf_score( sdbf *sdbf_1, sdbf *sdbf_2, uint32_t map_on, uint32_t sample) {
+sdbf::sdbf_score( sdbf *sdbf_1, sdbf *sdbf_2, uint32_t sample) {
 
     double max_score, score_sum = -1;
-    uint32_t i, t, thread_cnt = config->thread_cnt;
+    uint32_t i;
     uint32_t bf_count_1, rand_offset;
-    boost::thread *thread_pool[MAX_THREADS];
     sdbf_task_t *tasklist = NULL;
 
     if( !sdbf_1->hamming)
@@ -399,65 +337,29 @@ sdbf::sdbf_score( sdbf *sdbf_1, sdbf *sdbf_2, uint32_t map_on, uint32_t sample) 
             bf_count_1 = sdbf_1->bf_count;
     }
    
-// Temporary for help with very small target data
-if (sdbf_2->bf_count < thread_cnt)
-    thread_cnt = sdbf_2->bf_count;
-  
-    tasklist = (sdbf_task_t *) alloc_check( ALLOC_ZERO, thread_cnt*sizeof( sdbf_task_t), "sdbf_score", "tasklist", ERROR_EXIT);
-    // Initialize common data for thread task(s)
-    for( t=0; t<thread_cnt; t++) {
-        tasklist[t].tid = t;
-        tasklist[t].tcount = thread_cnt;
-        tasklist[t].ref_sdbf = sdbf_1;
-        tasklist[t].tgt_sdbf = sdbf_2;
-        tasklist[t].done = 0;
-    }
-    if( thread_cnt > 1) {
-        for( t=0; t<thread_cnt; t++) {
-                thread_pool[t] = new boost::thread(thread_sdbf_max_score,tasklist+t);
-        }
-    }
+    tasklist = (sdbf_task_t *) alloc_check( ALLOC_ZERO, sizeof( sdbf_task_t), "sdbf_score", "tasklist", ERROR_EXIT);
+    tasklist[0].tid = 0;
+    tasklist[0].tcount = 1;
+    tasklist[0].ref_sdbf = sdbf_1;
+    tasklist[0].tgt_sdbf = sdbf_2;
+    tasklist[0].done = 0;
     rand_offset = 1 ;
     srand(time(NULL));
+    int sparsect=0;
     for( i=0; i< bf_count_1; i++) {
         if (sample > 0 && bf_count_1 > sample)  {
             rand_offset = rand() % (uint32_t)(sdbf_1->bf_count / sample);
-         }
-        // No threading
-        if( thread_cnt < 2) {
-            tasklist[0].ref_index=i*rand_offset;
-            max_score = sdbf_max_score( tasklist, map_on);
-        // === Threading ===
-        } else {
-            for( t=0; t<thread_cnt; t++) {
-                tasklist[t].ref_index=i*rand_offset;
-                tasklist[t].sem_start.post();
-            }
-            for( t=0; t<thread_cnt; t++) {
-                tasklist[t].sem_end.wait();
-            }
-            max_score = tasklist[0].result;
-            for( t=1; t<thread_cnt; t++) {
-                max_score = (tasklist[t].result > max_score) ? tasklist[t].result : max_score;
-            }
-        // === Done threading ===
         }
+        tasklist[0].ref_index=i*rand_offset;
+        max_score = sdbf_max_score( tasklist);
         score_sum = (score_sum < 0) ? max_score : score_sum + max_score;
-        if( map_on == FLAG_ON) {
-            printf( "  %5.3f\n", max_score);
-        }
+        if (get_elem_count( sdbf_1, i) < MIN_ELEM_COUNT ) 
+            sparsect++;
     }
     uint64_t denom = bf_count_1;
-    if (thread_cnt > 1) {
-        for (t = 0; t < thread_cnt; t++) {
-                tasklist[t].done = 1;
-                tasklist[t].sem_start.post();
-                thread_pool[t]->join();
-        }
-        for (t = 0; t < thread_cnt; t++) {
-                delete thread_pool[t];
-        }
-    }
+    // improving the average.
+    if (bf_count_1 > 1) 
+        denom-=sparsect;
     free(tasklist);
     return (score_sum < 0) ? -1 : boost::math::round( 100.0*score_sum/(denom));
     
@@ -468,7 +370,7 @@ if (sdbf_2->bf_count < thread_cnt)
  */
 
 double 
-sdbf::sdbf_max_score( sdbf_task_t *task, uint32_t map_on) {
+sdbf::sdbf_max_score( sdbf_task_t *task) {
     assert( task != NULL);
         
     double score, max_score=-1;
@@ -477,16 +379,15 @@ sdbf::sdbf_max_score( sdbf_task_t *task, uint32_t map_on) {
     uint16_t *bf_1, *bf_2;
 
     s1 = get_elem_count( task->ref_sdbf, task->ref_index);
-    // Are there enough elements to even consider comparison?
     if( s1 < MIN_ELEM_COUNT)
-        return max_score;
+        return 0;
     bf_1 = (uint16_t *)(task->ref_sdbf->buffer + task->ref_index*bf_size);
     uint32_t e1_cnt = task->ref_sdbf->hamming[task->ref_index];
     uint32_t comp_cnt = task->tgt_sdbf->bf_count;
     for( i=task->tid; i<comp_cnt; i+=task->tcount) {
         bf_2 = (uint16_t *)(task->tgt_sdbf->buffer + i*bf_size);
         s2 = get_elem_count( task->tgt_sdbf, i);
-        if( task->ref_sdbf->bf_count > 1 && s2 < MIN_REF_ELEM_COUNT)
+        if( task->ref_sdbf->bf_count > 1 && s2 < MIN_ELEM_COUNT)
             continue;
         uint32_t e2_cnt = task->tgt_sdbf->hamming[i];
 
@@ -494,54 +395,36 @@ sdbf::sdbf_max_score( sdbf_task_t *task, uint32_t map_on) {
         max_est = (e1_cnt < e2_cnt) ? e1_cnt : e2_cnt;
         min_est = bf_match_est( 8*bf_size, task->ref_sdbf->hash_count, s1, s2, 0);
         cut_off = boost::math::round( SD_SCORE_SCALE*(double)(max_est-min_est)+(double)min_est);
-        // Max/min number of matching bits & zero cut off
-        max_est = (e1_cnt < e2_cnt) ? e1_cnt : e2_cnt;
-        min_est = bf_match_est( 8*bf_size, task->ref_sdbf->hash_count, s1, s2, 0);
-        cut_off = boost::math::round( SD_SCORE_SCALE*(double)(max_est-min_est)+(double)min_est);
-
         // Find matching bits
-	    if (config->popcnt) {
-			match = bf_bitcount_cut_256_asm( (uint8_t *)bf_1, (uint8_t *)bf_2, cut_off, slack);
-			if( match > 0) {
-				match = bf_bitcount_cut_256_asm( (uint8_t *)bf_1, (uint8_t *)bf_2, 0, 0);
-			}
-		} else {
-			match = bf_bitcount_cut_256( (uint8_t *)bf_1, (uint8_t *)bf_2, cut_off, slack);
-			if( match > 0) {
-				match = bf_bitcount_cut_256( (uint8_t *)bf_1, (uint8_t *)bf_2, 0, 0);
-			}
+        if (config->popcnt) {
+            match = bf_bitcount_cut_256_asm( (uint8_t *)bf_1, (uint8_t *)bf_2, cut_off, slack);
+            if( match > 0) {
+                match = bf_bitcount_cut_256_asm( (uint8_t *)bf_1, (uint8_t *)bf_2, 0, 0);
+            }
+        } else {
+            match = bf_bitcount_cut_256( (uint8_t *)bf_1, (uint8_t *)bf_2, cut_off, slack);
+            if( match > 0) {
+                match = bf_bitcount_cut_256( (uint8_t *)bf_1, (uint8_t *)bf_2, 0, 0);
+            }
 
-	    }
-        score = (match <= cut_off) ? 0 : (double)(match-cut_off)/(max_est-cut_off);
-        if( map_on == FLAG_ON && config->thread_cnt == 1) {
-            printf( "%s", (score > 0) ? "+" : ".");
         }
+        score = (match <= cut_off) ? 0 : (double)(match-cut_off)/(max_est-cut_off);
         max_score = (score > max_score) ? score : max_score;
     }
+
     task->result = max_score;
 
     return max_score;
 }
 
 void
-sdbf::print_smaller_indexes(uint32_t threshold, vector<uint32_t> *matches, vector<bloom_filter*> *indexes, uint64_t pos, bloom_filter *matched, bool basename){
-    uint32_t count=indexes->size();
+sdbf::print_indexes(uint32_t threshold, vector<uint32_t> *matches, uint64_t pos){
+    uint32_t count=this->info->setlist->size();
     std::stringstream build;
     bool any=false;
-    for (int i=0;i<count;i++) {
+    for (uint32_t i=0;i<count;i++) {
         if (matches->at(i) > threshold) {
-        if (basename)
-            build << fs::path(this->name()).filename().string();
-   	else 
-            build << this->name();
-        build <<" ["<< pos<< "] | " ;
-        if (basename)
-            build << fs::path(indexes->at(i)->name()).filename().string();
-	else 
-            build << indexes->at(i)->name();
-        build << " | " ;
-        build << matches->at(i) << endl;
-        // note normalize to 0-100 score?
+            build << this->name() <<" [" << pos << "] |" << this->info->setlist->at(i)->name() << "|" << matches->at(i) << endl;
             any=true;
         }
     }
@@ -550,6 +433,7 @@ sdbf::print_smaller_indexes(uint32_t threshold, vector<uint32_t> *matches, vecto
         index_results.append(build.str());
     }
 }
+
 void 
 sdbf::reset_indexes(vector<uint32_t> *matches){
     std::fill(matches->begin(),matches->end(),0);
@@ -561,25 +445,11 @@ bool
 sdbf::check_indexes(uint32_t* sha1, vector<uint32_t>* matches) {
     uint32_t count=this->info->setlist->size();
     bool any=false;
-    for (int i=0;i<count;i++) {
+    for (uint32_t i=0;i<count;i++) {
         if (this->info->setlist->at(i)->index->query_sha1(sha1)) {
             matches->at(i)++;
             any=true;
         }
     }
     return any;
-}    
-
-uint32_t
-sdbf::check_smaller_indexes(uint32_t* sha1, vector<uint32_t>* matches, vector<bloom_filter *> *indexes) {
-    uint32_t count=indexes->size();
-    bool any=false;
-    uint32_t tally=0;
-    for (int i=0;i<count;i++) {
-        if (indexes->at(i)->query_sha1(sha1)) {
-            matches->at(i)++;
-            tally++;
-        }
-    }
-    return (tally);
 }    

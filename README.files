@@ -4,6 +4,7 @@ libsdbf.a  - sdbf library
 sdhash-src/  - sdhash standalone program 
 sdhash-server/ - sdhash-srv program and supporting files
 sdhash-ui/ - user interface to server
+sdhash-gpu/ - CUDA program directory
 
 man/ - man pages
 extra/ - example files and lcs and pcap

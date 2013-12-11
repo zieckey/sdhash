@@ -26,7 +26,7 @@
 #define PORT 2700
 
 #define SDBF_VERSION     2
-#define VERSION_INFO    "sdhash-2.1 by Vassil Roussev, Candice Quates, May 2012"
+#define VERSION_INFO    "sdhash-3.3 by Vassil Roussev, Candice Quates, 07/2013"
 
 // Command line options
 #define OPT_MAX       3
@@ -37,7 +37,7 @@
 #define MODE_DIR      0x04
 #define MODE_PAIR         0x08
 #define MODE_FIRST        0x10
-#define MODE_INFILE		0x20
+#define MODE_INFILE        0x20
 //
 #define OPT_MAP       1
 #define FLAG_OFF      0x00
@@ -47,11 +47,11 @@
 typedef struct {
     uint32_t  thread_cnt;
     uint32_t  warnings;
-	uint32_t  port;
-	uint32_t  maxconn;
-	string *host;
-	string *home;
-	string *sources;
+    uint32_t  port;
+    uint32_t  maxconn;
+    string *host;
+    string *home;
+    string *sources;
 } sdbf_parameters_t;
 
 sdbf_parameters_t* read_args (int ac, char* av[], int quiet);

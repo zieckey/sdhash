@@ -35,3 +35,9 @@ in this distribution directly.
 The web interface uses the CherryPy web server -- whose BSD license
 is included in its' source, and the Jinja2 templating engine - 
 also BSD licensed and included in the source. 
+
+The sdhash-gpu code uses some freely-licensed Nvidia example
+code in its inspiration, details are available in the top
+of sdhash-gpu/matrixCompare.cu 
+
+

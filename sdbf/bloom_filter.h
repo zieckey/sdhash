@@ -11,7 +11,7 @@
 using namespace std;
 
 /**
-	bloom_filter:  a Bloom filter class.
+    bloom_filter:  a Bloom filter class.
 */
 /// bloom_filter class
 class bloom_filter {
@@ -24,7 +24,7 @@ public:
     bloom_filter(string indexfilename);
 
     /// construct bloom filter from buffer 
-    bloom_filter(uint8_t* data,uint64_t size);
+    bloom_filter(uint8_t* data,uint64_t size,int id, int bf_elem_ct, uint16_t hamming);
     
     /// destructor
     ~bloom_filter();
@@ -53,6 +53,10 @@ public:
     /// write bloom filter to .idx file
     int write_out(string filename);
 
+    /// id associated with bloom filter (used for grouping)
+    int bloom_id();  
+    void set_bloom_id(int id);
+
 private:
     /// actual query/insert function
     bool query_and_set(uint32_t *sha1, bool mode_set);
@@ -64,11 +68,12 @@ public:
     static const uint32_t BIT_MASKS_32[];
     static const uint32_t BITS[];
 
+    uint8_t  *bf;            // Beginning of the BF 
+    uint16_t  hamming;        // weight of this bf
 private:
     uint64_t  max_elem;      // Max number of elements
     double    max_fp;        // Max FP rate
     
-    uint8_t  *bf;            // Beginning of the BF 
     uint64_t  bf_size;       // BF size in bytes (==m/8)
     uint64_t  bf_elem_count; // Actual number of elements inserted
     uint16_t  hash_count;    // Number of hash functions used (k)
@@ -76,6 +81,7 @@ private:
     uint64_t  comp_size;     // size of compressed bf to be read
     string    setname;       // name associated with bloom filter
     bool      created;       // set if we allocated the bloom filter ourselves
+    int          bl_id;
 
 };
 

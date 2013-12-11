@@ -43,31 +43,31 @@ int main(int argc, char** argv) {
   sdhashsrvClient client(protocol);
 
   if (argc == 2) {
-	if (!strncmp(argv[1],"stop",3)) {
-	  try {
-		transport->open();
-		client.ping();
-		client.shutdown();
-		cout << "stop signal sent to sdhash-srv" << endl;
-		transport->close();
-	  } catch (TException &tx) {
-		cerr << "Cannot connect "<< tx.what() << endl;
-	  }
-	} else if (!strncmp(argv[1],"start",5)) {
-		// start sdhash-srv
-		cout << "starting sdhash-srv with defaults" << endl;
-		execl("sdhash-srv","sdhash-srv",NULL);
-	} else if (!strncmp(argv[1],"status",6)) {
-	  try {
-		transport->open();
-		client.ping();
-		cout << "sdhash-srv is responding to requests" << endl;
-		transport->close();
-	  } catch (TException &tx) {
-		cerr << "Cannot connect, server not online." << endl;
-	  }
-	}
+    if (!strncmp(argv[1],"stop",3)) {
+      try {
+        transport->open();
+        client.ping();
+        client.shutdown();
+        cout << "stop signal sent to sdhash-srv" << endl;
+        transport->close();
+      } catch (TException &tx) {
+        cerr << "Cannot connect "<< tx.what() << endl;
+      }
+    } else if (!strncmp(argv[1],"start",5)) {
+        // start sdhash-srv
+        cout << "starting sdhash-srv with defaults" << endl;
+        execl("sdhash-srv","sdhash-srv",NULL);
+    } else if (!strncmp(argv[1],"status",6)) {
+      try {
+        transport->open();
+        client.ping();
+        cout << "sdhash-srv is responding to requests" << endl;
+        transport->close();
+      } catch (TException &tx) {
+        cerr << "Cannot connect, server not online." << endl;
+      }
+    }
   } else {
-	cerr << "Usage: " << argv[0] << " start|stop|status" << endl;
+    cerr << "Usage: " << argv[0] << " start|stop|status" << endl;
   }
 }

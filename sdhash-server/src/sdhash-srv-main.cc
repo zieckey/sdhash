@@ -38,6 +38,8 @@ using namespace std;
 #include "sdhash-srv.h"
 #include "set_list.h"
 
+#include <omp.h>
+
 namespace fs = boost::filesystem;
 
 //static pthread_mutex_t set_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -72,15 +74,16 @@ class sdhashsrvHandler : virtual public sdhashsrvIf {
                     int32_t setid=make_hashsetID();
                     string setname;
                     setname=itr->path().stem().string();
-                    add_set(tmp_set,(char*)setname.c_str(),setid);
+                    //add_set(tmp_set,(char*)setname.c_str(),setid);
                     j++;
                     fprintf(stderr,"OK\n");
-	            if (fs::exists(itr->path().string()+".idx")) {
-		        bloom_filter *indextest=new bloom_filter(itr->path().string()+".idx");
-		        indexlist.push_back(indextest);
-		        tmp_set->index=indextest;
+                if (fs::exists(itr->path().string()+".idx")) {
+                bloom_filter *indextest=new bloom_filter(itr->path().string()+".idx");
+                indexlist.push_back(indextest);
+                tmp_set->index=indextest;
                         cerr << "-> Loaded index " <<  itr->path().string() << "..... OK" << endl;
-		    }
+            }
+                    add_set(tmp_set,(char*)setname.c_str(),setid);
                 } else {
                     fprintf(stderr,"File empty\n",itr->path().string().c_str());
                 }
@@ -223,7 +226,7 @@ class sdhashsrvHandler : virtual public sdhashsrvIf {
     if (setcollection.count(num1)) {
         add_request(resultID,(string)get_set_name(num1)+" all hashes");
         std::cout << "compareAll begin request for " << num1 << " " << get_set_name(num1) <<  std::endl;
-        result_str=get_set(num1)->compare_all(threshold);
+        result_str=get_set(num1)->compare_all_quiet(threshold,processing_thread_count);
         add_result(resultID,result_str);
     } else {
         std::cout << "compareAll begin request for " << num1 << " not found" << std::endl;
@@ -246,7 +249,7 @@ class sdhashsrvHandler : virtual public sdhashsrvIf {
             +(string)get_set_name(num2));
         std::cout << "compareTwo begin request for " << num1 << " " << get_set_name(num1) ;
         std::cout << " "<< num2 << " " << get_set_name(num2) <<  std::endl;
-        result_str=get_set(num1)->compare_to(get_set(num2),threshold,sample);
+        result_str=get_set(num1)->compare_to_quiet(get_set(num2),threshold,sample,processing_thread_count);
         add_result(resultID,result_str);
     } else {
         std::cout << "compareTwo begin request for " << num1 ;
@@ -271,6 +274,12 @@ class sdhashsrvHandler : virtual public sdhashsrvIf {
     std::cout << "loadSet begin request to load " << filename << std::endl;
     try {
         tmp_set=new sdbf_set(filename.c_str());
+    // load index, attach to set
+    if (fs::exists(filename+".idx")) {
+            bloom_filter *indextest=new bloom_filter(filename+".idx");
+        indexlist.push_back(indextest);
+            tmp_set->index=indextest;
+    }
         if (!tmp_set->empty()) {
             setid=make_hashsetID();
             add_set(tmp_set,setname,setid);
@@ -278,12 +287,6 @@ class sdhashsrvHandler : virtual public sdhashsrvIf {
             fprintf(stderr,"File not found or empty: %s\n",filename.c_str());
             fail=1;
         }
-	// load index, attach to set
-	if (fs::exists(filename+".idx")) {
-            bloom_filter *indextest=new bloom_filter(filename+".idx");
-	    indexlist.push_back(indextest);
-            tmp_set->index=indextest;
-	}
     } catch (int e) {
         if (e==-1) 
             fprintf(stderr,"File not accessible: %s\n",filename.c_str());
@@ -329,44 +332,48 @@ class sdhashsrvHandler : virtual public sdhashsrvIf {
   void hashString(const std::string& setname, const std::vector<std::string> & filenames, const int32_t blocksize, const int32_t hashsetID, const int32_t searchIndex) {
     sdbf_set *tmp;
     index_info *info=(index_info*)malloc(sizeof(index_info));
-    std::cout << "hashString begin request for "<< setname << " ";
+    std::cout << "hashString begin request for "<< setname << " type " << searchIndex << endl;
     switch (searchIndex) {
         case 1:
             // search top
             info->search_first=true;
             info->search_deep=true;
-	    break;
+        break;
         case 2: 
             // search all
             info->search_first=false;
             info->search_deep=true;
-	    break;
+        break;
+        case 3:
+            // search set
+            info->search_first=false;
+            info->search_deep=false;
+        break;
     }
     // if we are searching:
     if (searchIndex > 0 ) {
-	tmp=new sdbf_set();
-	info->indexlist=&indexlist;
-	info->setlist=&setlist;
-        info->index=NULL;	
+        tmp=new sdbf_set();
+        info->indexlist=&indexlist;
+        info->setlist=&setlist;
+        info->index=NULL;    
         cerr << "Searching " << indexlist.size() << " indexes." << endl; 
-        int resID=createResultID("indexing");
-	add_request(resID,setname+" searching indexes");
+        //int resID=createResultID("indexing");
+        add_request(hashsetID,setname+" indexes");
         tmp=hash_stringlist(filenames,blocksize,processing_thread_count, info);
         string indexres=tmp->index_results();
-	add_result(resID,indexres);
-	delete tmp;
+        add_result(hashsetID,indexres);
+        delete tmp;
         std::cout << "hashString request succeeds for "<< setname << std::endl;
         // do NOT save out
     } else {
-	// NOT indexing yet -- need other functions for breaking up sets and etc.
         if (searchIndex == 0) {
             tmp=new sdbf_set();
-            info->index=NULL;	
-	    info->indexlist=NULL;
-	    info->setlist=NULL;
+            info->index=NULL;    
+        info->indexlist=NULL;
+        info->setlist=NULL;
             tmp=hash_stringlist(filenames,blocksize,processing_thread_count, info);
             if (!tmp->empty()) {
-	    string tmp2=setname+".sdbf";
+        string tmp2=setname+".sdbf";
             string savename=(fs::path(home_directory)/tmp2).string();
             char *fsetname;
             fsetname=(char*)malloc(setname.length()+1);
@@ -517,139 +524,139 @@ private:
 
     void
     rng_init() {
-	gen.seed(static_cast<unsigned int>(time(0)));
+    gen.seed(static_cast<unsigned int>(time(0)));
     }
 
     void
     add_result(int32_t resultID, string res) {
-	results.insert(pair<int32_t,string>(resultID,res));
-	endtime.insert(pair<int32_t,time_t>(resultID,time(0)));
+    results.insert(pair<int32_t,string>(resultID,res));
+    endtime.insert(pair<int32_t,time_t>(resultID,time(0)));
     }
 
     void
     add_request(int32_t resultID, string req) {
-	requests.insert(pair<int32_t,string>(resultID,req));
-	starttime.insert(pair<int32_t,time_t>(resultID,time(0)));
+    requests.insert(pair<int32_t,string>(resultID,req));
+    starttime.insert(pair<int32_t,time_t>(resultID,time(0)));
     }
 
     string    
     get_request(int32_t resultID) {
-	string result="";
-	std::map<int32_t,string>::iterator reqfound = requests.find(resultID);
-	if (reqfound!=requests.end() ) {
-	    string idstr=boost::lexical_cast<string>(resultID);
-	    result= reqfound->second;
-	}
-	return result;
+    string result="";
+    std::map<int32_t,string>::iterator reqfound = requests.find(resultID);
+    if (reqfound!=requests.end() ) {
+        string idstr=boost::lexical_cast<string>(resultID);
+        result= reqfound->second;
+    }
+    return result;
     }
 
     int32_t
     add_resultID(string user) {
-	boost::random::uniform_int_distribution<> dist(1,131070);
-	int32_t id = dist(gen);
-	users.insert(pair<string,int32_t>(user,id));
-	return id;
+    boost::random::uniform_int_distribution<> dist(1,131070);
+    int32_t id = dist(gen);
+    users.insert(pair<string,int32_t>(user,id));
+    return id;
     }
 
     int32_t
     make_hashsetID() {
-	boost::random::uniform_int_distribution<> dist(1,131070);
-	int32_t id = dist(gen);
-	return id;
+    boost::random::uniform_int_distribution<> dist(1,131070);
+    int32_t id = dist(gen);
+    return id;
     }
 
     string
     get_result(int32_t resultID) {
         string result="";
-	std::map<int32_t,string>::iterator resfound = results.find(resultID);
-	std::map<int32_t,time_t>::iterator startfound = starttime.find(resultID);
-	std::map<int32_t,time_t>::iterator endfound = endtime.find(resultID);
-	if (resfound!=results.end() && startfound != starttime.end() && endfound != endtime.end() )  {
-	    time_t querytime = (endfound->second - startfound->second);
-	    string timestr=boost::lexical_cast<string>(querytime);
-	    string idstr=boost::lexical_cast<string>(resultID);
-	    result= resfound->second; //+"query "+idstr+" time "+timestr + " seconds\n";
-	}
-	return result;
+    std::map<int32_t,string>::iterator resfound = results.find(resultID);
+    std::map<int32_t,time_t>::iterator startfound = starttime.find(resultID);
+    std::map<int32_t,time_t>::iterator endfound = endtime.find(resultID);
+    if (resfound!=results.end() && startfound != starttime.end() && endfound != endtime.end() )  {
+        time_t querytime = (endfound->second - startfound->second);
+        string timestr=boost::lexical_cast<string>(querytime);
+        string idstr=boost::lexical_cast<string>(resultID);
+        result= resfound->second; //+"query "+idstr+" time "+timestr + " seconds\n";
+    }
+    return result;
     }
 
     string
     get_result_duration(int32_t resultID) {
-	string result="";
-	std::map<int32_t,time_t>::iterator startfound = starttime.find(resultID);
-	std::map<int32_t,time_t>::iterator endfound = endtime.find(resultID);
-	if (startfound != starttime.end() && endfound != endtime.end() )  {
-	    time_t querytime = (endfound->second - startfound->second);
-	    string timestr=boost::lexical_cast<string>(querytime);
-	    result= timestr + "s";
-	} else if (startfound != starttime.end() && endfound == endtime.end()) {
-	    time_t now = time(0);
-	    time_t querytime = (now - startfound->second);
-	    string timestr=boost::lexical_cast<string>(querytime);
-	    result= timestr + "s";
-	}    
-	return result;
+    string result="";
+    std::map<int32_t,time_t>::iterator startfound = starttime.find(resultID);
+    std::map<int32_t,time_t>::iterator endfound = endtime.find(resultID);
+    if (startfound != starttime.end() && endfound != endtime.end() )  {
+        time_t querytime = (endfound->second - startfound->second);
+        string timestr=boost::lexical_cast<string>(querytime);
+        result= timestr + "s";
+    } else if (startfound != starttime.end() && endfound == endtime.end()) {
+        time_t now = time(0);
+        time_t querytime = (now - startfound->second);
+        string timestr=boost::lexical_cast<string>(querytime);
+        result= timestr + "s";
+    }    
+    return result;
     }
 
     string    
     get_result_status(int32_t resultID) {
     string result="";
-	std::map<int32_t,time_t>::iterator startfound = starttime.find(resultID);
-	std::map<int32_t,time_t>::iterator endfound = endtime.find(resultID);
-	if (startfound != starttime.end() && endfound != endtime.end() )  {
-	    std::map<int32_t,string>::iterator resultfound= results.find(resultID);
-	    string strresult=resultfound->second;
-	    uint64_t rescount=0;
-	    string::iterator it;
-	    for ( it=strresult.begin() ; it < strresult.end(); it++ )
-	    if (*it == '\n') rescount++;
-	    result="complete ("+boost::lexical_cast<string>(rescount)+")";
-	    
-	} else if (startfound != starttime.end() && endfound == endtime.end()) {
-	    result="processing";
-	} else {
-	    result="not found";
-	}
-	return result;
+    std::map<int32_t,time_t>::iterator startfound = starttime.find(resultID);
+    std::map<int32_t,time_t>::iterator endfound = endtime.find(resultID);
+    if (startfound != starttime.end() && endfound != endtime.end() )  {
+        std::map<int32_t,string>::iterator resultfound= results.find(resultID);
+        string strresult=resultfound->second;
+        uint64_t rescount=0;
+        string::iterator it;
+        for ( it=strresult.begin() ; it < strresult.end(); it++ )
+        if (*it == '\n') rescount++;
+        result="complete ("+boost::lexical_cast<string>(rescount)+")";
+        
+    } else if (startfound != starttime.end() && endfound == endtime.end()) {
+        result="processing";
+    } else {
+        result="not found";
+    }
+    return result;
     }
 
     /**
     * add set and its name to the set list.
     */
     int add_set( sdbf_set *set, char *name, int32_t setID) {
-	setcollection.insert(pair<int32_t,sdbf_set*>(setID,set));
-	if (set->index !=NULL)
-	   setlist.push_back(set);
-	set->set_name((std::string)name);
-	set->vector_init();
-	return setID;
+    setcollection.insert(pair<int32_t,sdbf_set*>(setID,set));
+    if (set->index !=NULL)
+       setlist.push_back(set);
+    set->set_name((std::string)name);
+    set->vector_init();
+    return setID;
     }
 
     /**
      * Returns the number of sets in our list
      */
     int get_set_count() {
-	return setcollection.size();
+    return setcollection.size();
     }
 
     /**
      * Returns the set associated with an id
      */
     sdbf_set *get_set( int32_t setID) {
-	if (setcollection.count(setID)) {
-	    return setcollection.find(setID)->second;
-	} else
-	    return NULL;
+    if (setcollection.count(setID)) {
+        return setcollection.find(setID)->second;
+    } else
+        return NULL;
     }
 
     /**
      * Returns the name (string) associates with a set
      */
     std::string get_set_name( int32_t setID) {
-	if( setcollection.count(setID))
-		return setcollection.find(setID)->second->name();
-	    else
-		return NULL;
+    if( setcollection.count(setID))
+        return setcollection.find(setID)->second->name();
+        else
+        return NULL;
     }
 
     /**
@@ -658,19 +665,19 @@ private:
      */
 int32_t
 hash_index_stringlist(const std::vector<std::string> & filenames, string output_name, uint32_t dd_block_size,uint32_t thread_cnt) {
-    std::vector<string> small;
+    std::vector<string> smallv;
     std::vector<string> large;
     for (vector<string>::const_iterator it=filenames.begin(); it < filenames.end(); it++) {
         if (fs::is_regular_file(*it)) {
             if (fs::file_size(*it) < 16*MB) {
-                    small.push_back(*it);
+                    smallv.push_back(*it);
             } else {
                 large.push_back(*it);
             }
         }
     }
     sdbf_set *set1;
-    int smallct=small.size();
+    int smallct=smallv.size();
     int largect=large.size();
     int hashfilecount=0;
     int i;
@@ -684,12 +691,12 @@ hash_index_stringlist(const std::vector<std::string> & filenames, string output_
         int filect=0;
         int sizetotal=0;
         for (i=0; i < smallct ; filect++,i++) {
-            smalllist[filect]=(char*)alloc_check(ALLOC_ONLY,small[i].length()+1, "main", "filename", ERROR_EXIT);
-            strncpy(smalllist[filect],small[i].c_str(),small[i].length()+1);
-            sizetotal+=fs::file_size(small[i]);
-            if (sizetotal > 16*MB || i==smallct-1) {
+            smalllist[filect]=(char*)alloc_check(ALLOC_ONLY,smallv[i].length()+1, "main", "filename", ERROR_EXIT);
+            strncpy(smalllist[filect],smallv[i].c_str(),smallv[i].length()+1);
+            sizetotal+=fs::file_size(smallv[i]);
+            if (sizetotal > 640*MB || i==smallct-1) {
                // set up new index, set, hash them..
-               bloom_filter *index1=new bloom_filter(4*MB,5,0,0.01);
+               bloom_filter *index1=new bloom_filter(64*MB,5,0,0.01);
                info->index=index1;
                set1=new sdbf_set(index1);
                sdbf_hash_files( smalllist, filect, thread_cnt,set1, info);
@@ -714,56 +721,59 @@ hash_index_stringlist(const std::vector<std::string> & filenames, string output_
                    cerr << "sdhash: ERROR cannot write to file " << output_index<< endl;
                    return -1;
                }
-	       int32_t newid = make_hashsetID();
-	       add_set(set1,(char*)output_nm.c_str(),newid);
-            }
+               int32_t newid = make_hashsetID();
+               indexlist.push_back(index1);
+               add_set(set1,(char*)output_nm.c_str(),newid);
+           }
         }
     }
     if (largect > 0) {
-    // temporarily, one file per hash.  still very large files may cause
-    // index problems.  
-        char **largelist=(char **)alloc_check(ALLOC_ONLY,2*sizeof(char*),"main", "filename list", ERROR_EXIT);
-        for (i=0; i < largect ; i++) {
-           largelist[0]=(char*)alloc_check(ALLOC_ONLY,large[i].length()+1, "main", "filename", ERROR_EXIT);
-           strncpy(largelist[0],large[i].c_str(),large[i].length()+1);
-           // making larger for larger files doesn't seem to help.
-           bloom_filter *index1=new bloom_filter(4*MB,5,0,0.01);
-           info->index=index1;
-           set1=new sdbf_set(index1);
-           // hash it
-           if (dd_block_size == 0 ) {  // if forcing file mode with -b 0
-              sdbf_hash_files( largelist, 1, thread_cnt,set1, info);
-           } else {
-                if (dd_block_size == -1) {
-                    sdbf_hash_files_dd( largelist, 1, 16*KB,128*MB, set1, info);
+        int filect=0;
+        int sizetotal=0;
+        char **largelist=(char **)alloc_check(ALLOC_ONLY,largect*sizeof(char*),"main", "filename list", ERROR_EXIT);
+        for (i=0; i < largect ; filect++, i++) {
+            largelist[filect]=(char*)alloc_check(ALLOC_ONLY,large[i].length()+1, "main", "filename", ERROR_EXIT);
+            strncpy(largelist[filect],large[i].c_str(),large[i].length()+1);
+            sizetotal+=fs::file_size(large[i]);
+            //if (sizetotal > 16*MB || i==smallct-1) {
+            if (sizetotal > 640*MB || i==largect-1) {
+                //if (sdbf_sys.verbose)
+                //cerr << "hash "<<hashfilecount<< " numf "<<filect<< endl;
+                // set up new index, set, hash them..
+                //bloom_filter *index1=new bloom_filter(4*MB,5,0,0.01);
+                bloom_filter *index1=new bloom_filter(64*MB,5,0,0.01);
+                info->index=index1;
+                set1=new sdbf_set(index1);
+                // no options allowed.  this is for auto-mode.
+                sdbf_hash_files_dd( largelist, filect, 16*KB, 128*MB,set1, info);
+                string output_nm= output_name+boost::lexical_cast<string>(hashfilecount)+".sdbf";
+                sizetotal=filect=0;
+                hashfilecount++;
+                // print set1 && index to files with counter
+                std::filebuf fb;
+                fb.open (output_nm.c_str(),ios::out|ios::binary);
+                if (fb.is_open()) {
+                    std::ostream os(&fb);
+                    os << set1;
+                    fb.close();
                 } else {
-                    sdbf_hash_files_dd( largelist, 1, dd_block_size*KB,128*MB, set1, info);
+                    cerr << "sdhash: ERROR cannot write to file " << output_name<< endl;
+                    return -1;
                 }
-           }
-           //string output_nm= output_name+boost::lexical_cast<string>(hashfilecount)+".sdbf";
-           string output_nm= (fs::path(home_directory)/output_name).string()+boost::lexical_cast<string>(hashfilecount)+".sdbf";
-           hashfilecount++;
-           std::filebuf fb;
-           fb.open (output_nm.c_str(),ios::out|ios::binary);
-           if (fb.is_open()) {
-               std::ostream os(&fb);
-               os << set1;
-               fb.close();
-           } else {
-               cerr << "sdhash: ERROR cannot write to file " << output_name<< endl;
-               return -1;
-           }
-           set1->index->set_name(output_nm);
-           string output_index = output_nm + ".idx";
-           int output_result = set1->index->write_out(output_index);
-           if (output_result == -2) {
-               cerr << "sdhash: ERROR cannot write to file " << output_index<< endl;
-               return -1;
-           }
-           int32_t newid = make_hashsetID();
-           add_set(set1,(char*)output_nm.c_str(),newid);
-        }
+                set1->index->set_name(output_nm);
+                string output_index = output_nm + ".idx";
+                int output_result = set1->index->write_out(output_index);
+                if (output_result == -2) {
+                    cerr << "sdhash: ERROR cannot write to file " << output_index<< endl;
+                    return -1;
+                }
+            int32_t newid = make_hashsetID();
+            indexlist.push_back(index1);
+            add_set(set1,(char*)output_nm.c_str(),newid);
+            }
+       }
     }
+
     return 0;
 }
     
@@ -776,8 +786,11 @@ int main(int argc, char **argv) {
     sdbf_parameters_t* conf=NULL;
 
     conf=read_args(argc,argv,0);    
+
+    omp_set_num_threads(conf->thread_cnt);
+
     if (conf==NULL) 
-    return 0;
+        return 0;
     fprintf(stderr, "sdhash-srv initializing service...\n");
     boost::shared_ptr<sdhashsrvHandler> handler(new sdhashsrvHandler(conf->thread_cnt,conf->home, conf->sources));
     boost::shared_ptr<TProcessor> processor(new sdhashsrvProcessor(handler));
@@ -793,7 +806,7 @@ int main(int argc, char **argv) {
     threadManager->start();
 
     boost::shared_ptr<TServer> server = boost::shared_ptr<TServer>
-	(new TThreadPoolServer(processor, serverTransport, transportFactory, protocolFactory, threadManager));
+    (new TThreadPoolServer(processor, serverTransport, transportFactory, protocolFactory, threadManager));
     handler->setServer(server);
     fprintf(stderr,"sdhash-srv listening on port %d, with %d worker threads.\n",conf->port, conf->maxconn);
     server->serve();

@@ -33,7 +33,7 @@ processed_file_t *process_file(const char *fname, int64_t min_file_size, uint32_
             fprintf( stderr, "Warning: '%s' is not a regular file. Skipping.\n", fname);
         return NULL;
     }
-    if( fs::file_size(fname) < min_file_size) {
+    if( (int64_t)fs::file_size(fname) < min_file_size) {
         if( warnings)
             fprintf( stderr, "Warning: File '%s' too small (%ld). Skipping.\n", fname, file_stat.st_size);
         return NULL;

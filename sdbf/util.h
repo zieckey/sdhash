@@ -11,20 +11,20 @@
 #define MB (KB*KB)
 #define GB (MB*KB)
 
-#define ALLOC_ONLY	1
-#define ALLOC_ZERO	2
-#define ALLOC_AUTO	3
+#define ALLOC_ONLY    1
+#define ALLOC_ZERO    2
+#define ALLOC_AUTO    3
 
-#define ERROR_IGNORE	0
-#define ERROR_EXIT		1
+#define ERROR_IGNORE    0
+#define ERROR_EXIT        1
 
 // Struct describing a mapped file
 typedef struct {
     char     *name;
     int       fd;
     FILE     *input;
-	uint64_t  size;
-	uint8_t	 *buffer;
+    uint64_t  size;
+    uint8_t     *buffer;
 } processed_file_t;
 
 processed_file_t *process_file(const char *fname, int64_t min_file_size, uint32_t warnings);

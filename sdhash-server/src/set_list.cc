@@ -3,7 +3,6 @@
 #include "sdhash-srv.h"
 #include "set_list.h"
 
-#include <boost/regex.hpp>
 #include <boost/filesystem.hpp>
 #include <iostream>
 #include <iomanip>
@@ -42,6 +41,7 @@ void
         is->close();
     }
     delete is;
+    return 0;
 }
 
 /**
@@ -153,14 +153,14 @@ hash_stringlist(const std::vector<std::string> & filenames, uint32_t dd_block_si
 
 void
 sdbf_hash_files_dd( char **filenames, uint32_t file_count, uint32_t dd_block_size, uint64_t chunk_size, sdbf_set *addto, index_info *info) {
-int32_t i,j, result = 0;
-struct stat file_stat;
-uint64_t chunks = 0,csize = 0;
-ifstream *is = new ifstream();
-int tailflag = 0;
-uint64_t filesize;
-for( i=0; i<file_count; i++) {
-    tailflag=0;
+    int32_t i,j, result = 0;
+    struct stat file_stat;
+    uint64_t chunks = 0,csize = 0;
+    ifstream *is = new ifstream();
+    int tailflag = 0;
+    uint64_t filesize;
+    for( i=0; i<file_count; i++) {
+        tailflag=0;
     filesize=fs::file_size(filenames[i]);
     is->open(filenames[i], ios::binary);
     if (filesize > chunk_size && chunk_size > 0) {
@@ -196,7 +196,7 @@ for( i=0; i<file_count; i++) {
                     class sdbf *sdbfm = new sdbf(fname,is,dd_block_size,csize,info);
                     addto->add(sdbfm);
                 } catch (int e) {
-		    continue; // failure allowed
+            continue; // failure allowed
                 }
             }
         } else {
@@ -204,7 +204,7 @@ for( i=0; i<file_count; i++) {
                 class sdbf *sdbfm = new sdbf(filenames[i],is,dd_block_size,filesize,info);
                 addto->add(sdbfm);
             } catch (int e) {
-		continue; // failure allowed
+                continue; // failure allowed
             }
         }
         is->close();

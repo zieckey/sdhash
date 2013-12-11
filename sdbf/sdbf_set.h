@@ -17,11 +17,11 @@ class sdbf_set {
     friend std::ostream& operator<<(std::ostream& os, const sdbf_set *s); ///< output operator
 
 public:
-	/// creates blank sdbf_set
-	sdbf_set(); 
+    /// creates blank sdbf_set
+    sdbf_set(); 
 
-	/// creates blank sdbf_set with index
-	sdbf_set(bloom_filter *index); 
+    /// creates blank sdbf_set with index
+    sdbf_set(bloom_filter *index); 
 
     /// loads an sdbf_set from a file
     sdbf_set(const char *fname); 
@@ -32,7 +32,7 @@ public:
     sdbf_set(const char *buffer, size_t buffer_length); 
 
     /// destructor
-    ~sdbf_set();
+        ~sdbf_set();
 
     /// accessor method for individual hashes
     class sdbf* at(uint32_t pos); 
@@ -49,49 +49,54 @@ public:
 
     /// Computes the data size of this set
     uint64_t input_size( ) ; 
+        
+        uint64_t filter_count();
 
-    uint64_t filter_count();
+    /// Compares all objects in a set to each other
+    void compare_all(int32_t threshold); 
+    std::string compare_all_quiet(int32_t threshold, int32_t thread_count); 
 
-	/// Compares all objects in a set to each other
-	std::string compare_all(int32_t threshold); 
+    ///queries one set for the contents of another
+    void compare_to(sdbf_set *other,int32_t threshold, uint32_t sample_size); 
+    std::string compare_to_quiet(sdbf_set *other,int32_t threshold, uint32_t sample_size, int32_t thread_count); 
 
-	///queries one set for the contents of another
-	std::string compare_to(sdbf_set *other,int32_t threshold, uint32_t sample_size); 
+    /// return a string which contains the output-encoded sdbfs in this set
+    std::string to_string() const;
 
-	/// return a string which contains the output-encoded sdbfs in this set
-	std::string to_string() const;
-
-	/// return a string which contains the results of this set's index seraching
-	std::string index_results() const;
+    /// return a string which contains the results of this set's index seraching
+    std::string index_results() const;
 
 
-	/// is this empty?
-	int empty();
+    /// is this empty?
+    int empty();
 
-	/// retrieve name of set
-	std::string name() const;
+    /// retrieve name of set
+    std::string name() const;
 
-	/// name this set.
-	void set_name(std::string name);
+    /// name this set.
+    void set_name(std::string name);
 
-	/// setup bloom filter vector
-	void vector_init();
+    /// change output separator
+    void set_separator(char sep);
 
+    /// setup bloom filter vector
+    void vector_init();
     /// Add by weizili
     /// free a sdbf_set
     static void destory(sdbf_set* &set);
 
 public:
     /// index for this set 
-	class bloom_filter *index;
+    class bloom_filter *index;
     /// giant bloom filter vector for this set
-	std::vector<class bloom_filter*> *bf_vector;
+    std::vector<class bloom_filter*> *bf_vector;
 
 private:
 
-	std::vector<class sdbf*> items;
-	std::string setname;
-	boost::mutex add_hash_mutex;
+    std::vector<class sdbf*> items;
+    std::string setname;
+    boost::mutex add_hash_mutex;
+    char sep;
 
 };
 

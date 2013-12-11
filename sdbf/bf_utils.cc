@@ -23,7 +23,6 @@ uint32_t bf_match_est( uint32_t m, uint32_t k, uint32_t s1, uint32_t s2, uint32_
     double ex = 1-1.0/m;
     uint32_t result = boost::math::round((double)m*(1 - pow( ex, (double)k*s1) - pow( ex, (double)k*s2) + pow( ex, (double)k*(s1+s2-common))));
     sdbf::config->bf_est_cache[s1][s2] = (uint16_t)result;
-        
     return result;
 }
 
@@ -47,7 +46,7 @@ uint32_t bf_sha1_insert( uint8_t *bf, uint8_t bf_class, uint32_t *sha1_hash) {
  * bf_merge(): Performs bitwise OR on two BFs
  */
 void bf_merge( uint32_t *base, uint32_t *overlay, uint32_t size) {
-    int i;
+    uint32_t i;
     for( i=0; i<size; i++)
         base[i] |= overlay[i];
 }
@@ -78,11 +77,10 @@ uint32_t bf_bitcount( uint8_t *bfilter_1, uint8_t *bfilter_2, uint32_t bf_size) 
 uint32_t
 bf_bitcount_cut_256_asm( uint8_t *bfilter_1, uint8_t *bfilter_2, uint32_t cut_off, int32_t slack) {
 //bf_bitcount_asm( uint8_t *bfilter_1, uint8_t *bfilter_2) {
-    uint32_t i, result=0;
+    uint32_t result=0;
     uint64_t buff64[32];
     uint64_t *f1_64 = (uint64_t *)bfilter_1;
     uint64_t *f2_64 = (uint64_t *)bfilter_2;
-    uint16_t *buff16 = (uint16_t *)buff64;
     // Partial computation (1/8 of full computation):
     buff64[0]= f1_64[0] & f2_64[0];
     buff64[1]= f1_64[1] & f2_64[1];

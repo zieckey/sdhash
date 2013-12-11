@@ -47,14 +47,15 @@
 
 
 // System parameters
-#define BF_SIZE			    256
+#define BF_SIZE                256
 #define BINS                1000
-#define ENTR_POWER		    10		
-#define ENTR_SCALE		    (BINS*(1 << ENTR_POWER))
+#define ENTR_POWER            10        
+#define ENTR_SCALE            (BINS*(1 << ENTR_POWER))
 #define MAX_FILES           1000000
 #define MAX_THREADS         512
-#define MIN_FILE_SIZE	    512
-#define MIN_ELEM_COUNT      6
+#define MIN_FILE_SIZE        512
+// changing 6 to 16, 3/5/13
+#define MIN_ELEM_COUNT     16
 #define MIN_REF_ELEM_COUNT  64
 #define POP_WIN_SIZE        64
 #define SD_SCORE_SCALE      0.3
@@ -72,25 +73,25 @@
 
 // P-threading task spesicification structure for matching SDBFs 
 typedef struct {
-	uint32_t  tid;			// Thread id
-	uint32_t  tcount;		// Total thread count for the job
-	boost::interprocess::interprocess_semaphore sem_start;// Starting semaphore (allows thread to enter iteration)
-	boost::interprocess::interprocess_semaphore sem_end;// Ending semaphore (signals the end of an iteration)
-	class sdbf   *ref_sdbf;  	// Reference SDBF
-	uint32_t  ref_index;	// Index of the reference BF
-	class sdbf   *tgt_sdbf;		// Target SDBF
-	double 	  result;		// Result: max score for the task
-	uint32_t  done;		// Are we finished
+    uint32_t  tid;            // Thread id
+    uint32_t  tcount;        // Total thread count for the job
+    boost::interprocess::interprocess_semaphore sem_start;// Starting semaphore (allows thread to enter iteration)
+    boost::interprocess::interprocess_semaphore sem_end;// Ending semaphore (signals the end of an iteration)
+    class sdbf   *ref_sdbf;      // Reference SDBF
+    uint32_t  ref_index;    // Index of the reference BF
+    class sdbf   *tgt_sdbf;        // Target SDBF
+    double       result;        // Result: max score for the task
+    uint32_t  done;        // Are we finished
 } sdbf_task_t; 
 
 // P-threading task specification structure for block hashing 
 typedef struct {
-	uint32_t  tid;			// Thread id
-	uint32_t  tcount;		// Total thread count for the job
+    uint32_t  tid;            // Thread id
+    uint32_t  tcount;        // Total thread count for the job
     uint8_t  *buffer;       // File buffer to be hashed 
     uint64_t  file_size;    // File size (for the buffer) 
     uint64_t  block_size;   // Block size
-	class	sdbf   *sdbf;		    // Result SDBF
+    class    sdbf   *sdbf;            // Result SDBF
 } blockhash_task_t; 
 
 

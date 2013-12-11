@@ -30,6 +30,7 @@ B<sdhash-mgr> stop
 
 =head1 OPTIONS
 
+=over 4
 
 =item B<-C> sdhash-srv.cfg 
 
@@ -73,6 +74,8 @@ only local connections.  Default port is 9090.
 
 Sets the maximum number of tcp connections allowed at once.  Default
 is 20 connections.
+
+=back
 
 =head1 AUTHORS
 

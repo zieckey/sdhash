@@ -32,16 +32,15 @@ void
 *thread_sdbf_hashfile( void *task_param) {
     filehash_task_t *task = (filehash_task_t *)task_param;
     struct stat file_stat;
-    int32_t chunks = 0,csize = 0;
     ifstream *is = new ifstream();
 
-    int i;
+    uint32_t i;
     for( i=task->tid; i<task->file_count; i+=task->tcount) {
         if (stat(task->filenames[i],&file_stat))
             continue;
         is->open(task->filenames[i], ios::binary);
         try {
-         if (sdbf_sys.verbose) 
+        if (sdbf_sys.verbose) 
             cerr << "sdhash: digesting file " << task->filenames[i] << endl;
             if (!task->addset) {
                 class sdbf *sdbfm = new sdbf(task->filenames[i],is,0,file_stat.st_size,task->info);
@@ -62,6 +61,7 @@ void
        is->close();
     }
     delete is;
+    return 0;
 }
 
 sdbf_set
@@ -118,10 +118,10 @@ sdbf_set
  */
 void
 sdbf_hash_files( char **filenames, uint32_t file_count, int32_t thread_cnt,sdbf_set *addto, index_info *info ) {
-    int32_t i, t, j;
+    uint32_t i;
+    int32_t t;
     //sdbf_set *myset = new sdbf_set();
     struct stat file_stat;
-    int32_t chunks = 0,csize = 0;
     ifstream *is = new ifstream();
 
     // Sequential implementation
@@ -177,27 +177,20 @@ sdbf_hash_files( char **filenames, uint32_t file_count, int32_t thread_cnt,sdbf_
 
 void
 sdbf_hash_files_dd( char **filenames, uint32_t file_count, uint32_t dd_block_size, uint64_t chunk_size, sdbf_set *addto, index_info *info) {
-    int32_t i,j, result = 0;
-    struct stat file_stat;
+    uint32_t i,j;
     uint64_t chunks = 0,csize = 0;
     ifstream *is = new ifstream();
-   int tailflag = 0;
-   uint64_t filesize;
+    int tailflag = 0;
+    uint64_t filesize;
     for( i=0; i<file_count; i++) {
-      tailflag=0;
-       filesize=fs::file_size(filenames[i]);
-       // if (filesize=fs::file_size(filenames[i])) {
-   //      if (sdbf_sys.warnings) 
-   //         cerr<< "sdhash: cannot access " << filenames[i] << endl;
-			//cerr << strerror(errno) << endl;
-   //         continue; // try the next one if cannot access
-   //     }
-      if (sdbf_sys.verbose) 
-         cerr << "sdhash: digesting file " << filenames[i] << endl;
+        tailflag=0;
+        filesize=fs::file_size(filenames[i]);
+        if (sdbf_sys.verbose) 
+            cerr << "sdhash: digesting file " << filenames[i] << endl;
         is->open(filenames[i], ios::binary);
         if (filesize > chunk_size && chunk_size > 0) {
             chunks = filesize / (chunk_size) ;
-          // adjusting for too small of a last fragment
+            // adjusting for too small of a last fragment
             // on a single segment piece
             if (filesize - chunk_size <= 512) {
                 chunks=0;
@@ -223,7 +216,7 @@ sdbf_hash_files_dd( char **filenames, uint32_t file_count, uint32_t dd_block_siz
                         csize=csize+(filesize-((chunks+1)*chunk_size)) ;
                 } else {
                     csize=chunk_size;
-            }
+                }
                 try {
                     if (addto!=NULL) {
                         class sdbf *sdbfm = new sdbf(fname,is,dd_block_size,csize,info);
@@ -231,7 +224,7 @@ sdbf_hash_files_dd( char **filenames, uint32_t file_count, uint32_t dd_block_siz
                     } else {
                         class sdbf *sdbfm = new sdbf(fname,is,dd_block_size,csize,info);
                         std::cout <<sdbfm;
-		delete sdbfm;
+                        delete sdbfm;
                     }
                 } catch (int e) {
                     if (e==-2)
@@ -291,11 +284,13 @@ hash_index_stringlist(const std::vector<std::string> & filenames, string output_
             smalllist[filect]=(char*)alloc_check(ALLOC_ONLY,small[i].length()+1, "main", "filename", ERROR_EXIT);
             strncpy(smalllist[filect],small[i].c_str(),small[i].length()+1);
             sizetotal+=fs::file_size(small[i]);
-            if (sizetotal > 16*MB || i==smallct-1) {
+            //if (sizetotal > 16*MB || i==smallct-1) {
+            if (sizetotal > 640*MB || i==smallct-1) {
                //if (sdbf_sys.verbose)
                     //cerr << "hash "<<hashfilecount<< " numf "<<filect<< endl;
                // set up new index, set, hash them..
-               bloom_filter *index1=new bloom_filter(4*MB,5,0,0.01);
+               //bloom_filter *index1=new bloom_filter(4*MB,5,0,0.01);
+               bloom_filter *index1=new bloom_filter(64*MB,5,0,0.01);
                info->index=index1;
                set1=new sdbf_set(index1);
                sdbf_hash_files( smalllist, filect, sdbf_sys.thread_cnt,set1, info);
@@ -320,59 +315,56 @@ hash_index_stringlist(const std::vector<std::string> & filenames, string output_
                    cerr << "sdhash: ERROR cannot write to file " << output_index<< endl;
                    return -1;
                }
-	       delete set1;
+               delete set1;
                delete index1;
-               // make hashsetID
-               // add set to list
             }
         }
     }
     if (largect > 0) {
-    // temporarily, one file per hash.  still very large files may cause
-    // index problems.  
-    if (sdbf_sys.verbose)
-        cerr << "sdhash: hashing+indexing large files"<< endl;
-    char **largelist=(char **)alloc_check(ALLOC_ONLY,2*sizeof(char*),"main", "filename list", ERROR_EXIT);
-        for (i=0; i < largect ; i++) {
-           largelist[0]=(char*)alloc_check(ALLOC_ONLY,large[i].length()+1, "main", "filename", ERROR_EXIT);
-           strncpy(largelist[0],large[i].c_str(),large[i].length()+1);
-           // making larger for larger files doesn't seem to help.
-           bloom_filter *index1=new bloom_filter(4*MB,5,0,0.01);
-           info->index=index1;
-           set1=new sdbf_set(index1);
-           // hash it
-           if (sdbf_sys.dd_block_size == 0 ) {  // if forcing file mode with -b 0
-              sdbf_hash_files( largelist, 1, sdbf_sys.thread_cnt,set1, info);
-           } else {
-                if (sdbf_sys.dd_block_size == -1) {
-                    if (sdbf_sys.warnings || sdbf_sys.verbose)
-                        cerr << "sdhash: Warning: files over 16MB are being hashed in block mode. Use -b 0 to disable." << endl;
-                    sdbf_hash_files_dd( largelist, 1, 16*KB,sdbf_sys.segment_size, set1, info);
-                } else {
-                    sdbf_hash_files_dd( largelist, 1, sdbf_sys.dd_block_size*KB,sdbf_sys.segment_size, set1, info);
-                }
-           }
-           string output_nm= output_name+boost::lexical_cast<string>(hashfilecount)+".sdbf";
-           hashfilecount++;
-           std::filebuf fb;
-           fb.open (output_nm.c_str(),ios::out|ios::binary);
-           if (fb.is_open()) {
-               std::ostream os(&fb);
-               os << set1;
-               fb.close();
-           } else {
-               cerr << "sdhash: ERROR cannot write to file " << output_name<< endl;
-               return -1;
-           }
-           set1->index->set_name(output_nm);
-           string output_index = output_nm + ".idx";
-           int output_result = set1->index->write_out(output_index);
-           if (output_result == -2) {
-               cerr << "sdhash: ERROR cannot write to file " << output_index<< endl;
-               return -1;
-           }
-           delete set1;
-           delete index1;
+        int filect=0;
+        int sizetotal=0;
+        if (sdbf_sys.verbose)
+            cerr << "sdhash: hashing+indexing large files"<< endl;
+        char **largelist=(char **)alloc_check(ALLOC_ONLY,largect*sizeof(char*),"main", "filename list", ERROR_EXIT);
+        for (i=0; i < largect ; filect++, i++) {
+            largelist[filect]=(char*)alloc_check(ALLOC_ONLY,large[i].length()+1, "main", "filename", ERROR_EXIT);
+            strncpy(largelist[filect],large[i].c_str(),large[i].length()+1);
+            sizetotal+=fs::file_size(large[i]);
+            //if (sizetotal > 16*MB || i==smallct-1) {
+            if (sizetotal > 640*MB || i==largect-1) {
+               //if (sdbf_sys.verbose)
+                    //cerr << "hash "<<hashfilecount<< " numf "<<filect<< endl;
+               // set up new index, set, hash them..
+               //bloom_filter *index1=new bloom_filter(4*MB,5,0,0.01);
+               bloom_filter *index1=new bloom_filter(64*MB,5,0,0.01);
+               info->index=index1;
+               set1=new sdbf_set(index1);
+               // no options allowed.  this is for auto-mode.
+               sdbf_hash_files_dd( largelist, filect, 16*KB, 128*MB,set1, info);
+               string output_nm= output_name+boost::lexical_cast<string>(hashfilecount)+".sdbf";
+               sizetotal=filect=0;
+               hashfilecount++;
+               // print set1 && index to files with counter
+               std::filebuf fb; 
+               fb.open (output_nm.c_str(),ios::out|ios::binary);
+               if (fb.is_open()) {
+                   std::ostream os(&fb);
+                   os << set1;
+                   fb.close();
+               } else {
+                   cerr << "sdhash: ERROR cannot write to file " << output_name<< endl;
+                   return -1;
+               }
+               set1->index->set_name(output_nm);
+               string output_index = output_nm + ".idx";
+               int output_result = set1->index->write_out(output_index);
+               if (output_result == -2) {
+                   cerr << "sdhash: ERROR cannot write to file " << output_index<< endl;
+                   return -1;
+               }
+               delete set1;
+               delete index1;
+            }
         }
     }
     return 0;

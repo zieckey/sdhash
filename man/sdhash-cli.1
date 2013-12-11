@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SDHASH-CLI 1"
-.TH SDHASH-CLI 1 "2012-12-07" "" ""
+.TH SDHASH-CLI 1 "2013-07-15" "" ""
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -158,17 +158,9 @@ Use '\-1' to display all comparisons.
 .IX Item "-s, --sample-size <1-16>"
 Uses a sampling of filters to perform queries, which speeds up
 query results significantly.  Used for query-mode only.
-.IP "\fB\-\-search\-all\fR" 4
-.IX Item "--search-all"
-Produces matches by searching individual digests after any set-level match has been made. Does not generate a saved set of hashes.
-.IP "\fB\-\-search\-first\fR" 4
-.IX Item "--search-first"
-Produces matches by searching the first matched set found in the index.  Can be 
-quicker than \fB\-\-search\-all\fR but less complete. Does not generate a saved set of 
-hashes.
-.IP "\fB\-w\fR, \fB\-\-warnings\fR" 4
-.IX Item "-w, --warnings"
-Displays warnings.
+.IP "\fB\-\-verbose\fR" 4
+.IX Item "--verbose"
+Displays warnings
 .SH "MODES"
 .IX Header "MODES"
 .IP "\fB\s-1HASHING\s0,LOADING,SAVING,LISTING\fR" 4
@@ -189,19 +181,6 @@ Using \-b will generate block-based hash digests which are useful for processing
 \&\fBsdhash-cli\fR [options] file1 file2 file4 foo*
 .Sp
 \&\fBsdhash-cli\fR \fB\-\-block\-size\fR 16 image.dd
-.RE
-.RE
-.RS 4
-.RE
-.IP "\fB\-f\fR, \fB\-\-hash\-list\fR <filelist.txt>" 4
-.IX Item "-f, --hash-list <filelist.txt>"
-File mode reads a list of files to be hashed from given file.  File should be unix formatted 
-with one filename per line.  Hashes are saved to a set associated with the list filename.
-.RS 4
-.Sp
-.RS 4
-\&\fBsdhash-cli\fR \fB\-\-hash\-list\fR listtohash.txt
-\&\fBsdhash-cli\fR \fB\-\-block\-size\fR 16 \fB\-f\fR listtohash.txt
 .RE
 .RE
 .RS 4
@@ -267,13 +246,12 @@ Searching uses index files generated upon hashing or loaded into the
 server to provide a fast lookup mechanism useful for driving data filtering.
 Searching does not generate a saved set of digests; it generates a results set.
 Results can be retrieved by using \fB\-\-results\-list\fR \fB\-\-type\fR indexing.
-.IP "\fB\-\-search\-all\fR" 4
-.IX Item "--search-all"
-Produces matches by searching individual digests after any set-level match has been made.
-.IP "\fB\-\-search\-first\fR" 4
-.IX Item "--search-first"
-Produces matches by searching the first matched set found in the index.  Can be 
-quicker than \fB\-\-search\-all\fR but less complete.
+.IP "\fB\-\-index\-search\fR" 4
+.IX Item "--index-search"
+Produces matches by searching set-level indexes.
+.IP "\fB\-\-index\fR" 4
+.IX Item "--index"
+Hashing option, generate and save indexes while creating sdbf hashes.
 .SH "AUTHORS"
 .IX Header "AUTHORS"
 \&\fBsdhash-cli\fR was written by Vassil Roussev <vassil@roussev.net> and Candice Quates <candice@egobsd.org>.  http://sdhash.org/

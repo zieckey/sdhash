@@ -56,7 +56,7 @@ public:
     uint64_t input_size();  
 
     /// matching algorithm, take other object and run match
-    int32_t compare(sdbf *other, uint32_t map_on, uint32_t sample);
+    int32_t compare(sdbf *other, uint32_t sample);
 
     /// return a string representation of this sdbf
     string to_string() const ; 
@@ -71,12 +71,13 @@ public:
 public:
     /// global configuration object
     static class sdbf_conf *config;  
+    static int32_t get_elem_count(sdbf *mine, uint64_t index) ;
 
 private:
 
     int compute_hamming();
     void sdbf_create(const char *filename);
-    static int32_t get_elem_count(sdbf *mine, uint64_t index) ;
+   // static int32_t get_elem_count(sdbf *mine, uint64_t index) ;
 
     // from sdbf_core.c: Core SDBF generation/comparison functions
     static void gen_chunk_ranks( uint8_t *file_buffer, const uint64_t chunk_size, uint16_t *chunk_ranks, uint16_t carryover);
@@ -87,16 +88,19 @@ private:
     void gen_block_sdbf_mt( uint8_t *file_buffer, uint64_t file_size, uint64_t block_size, uint32_t thread_cnt);
 
     static void *thread_gen_block_sdbf( void *task_param);
-    static int     sdbf_score( sdbf *sd_1, sdbf *sd_2, uint32_t map_on, uint32_t sample);
-    static double  sdbf_max_score( sdbf_task_t *task, uint32_t map_on);
-    static void *thread_sdbf_max_score( void *task_param);
+    static int     sdbf_score( sdbf *sd_1, sdbf *sd_2, uint32_t sample);
+    static double  sdbf_max_score( sdbf_task_t *task);
 
-    void print_smaller_indexes(uint32_t threshold, vector<uint32_t> *matches, vector<bloom_filter *> *indexes,uint64_t pos, bloom_filter *matched,bool basename);
+    void print_indexes(uint32_t threshold, vector<uint32_t> *matches, uint64_t pos);
     void reset_indexes(vector<uint32_t> *matches);
     bool check_indexes(uint32_t* sha1, vector<uint32_t> *matches);
-    uint32_t check_smaller_indexes(uint32_t* sha1, vector<uint32_t> *matches, vector<bloom_filter*> *indexes);
     bool is_block_null(uint8_t *buffer, uint32_t size);
-
+    
+public:
+    uint8_t  *buffer;        // Beginning of the BF cluster
+    uint16_t *hamming;       // Hamming weight for each BF
+   // uint16_t *elem_counts;   // Individual elements counts for each BF (used in dd mode)
+    uint32_t  max_elem;      // Max number of elements per filter (n)
 private:
     index_info *info;
     string index_results;
@@ -107,11 +111,10 @@ private:
     uint32_t  bf_size;       // BF size in bytes (==m/8)
     uint32_t  hash_count;    // Number of hash functions used (k)
     uint32_t  mask;          // Bit mask used (must agree with m)
-    uint32_t  max_elem;      // Max number of elements per filter (n)
     uint32_t  last_count;    // Actual number of elements in last filter (n_last); 
                                                          // ZERO means look at elem_counts value 
-    uint8_t  *buffer;        // Beginning of the BF cluster
-    uint16_t *hamming;       // Hamming weight for each BF
+    //uint8_t  *buffer;        // Beginning of the BF cluster
+    //uint16_t *hamming;       // Hamming weight for each BF
     uint16_t *elem_counts;   // Individual elements counts for each BF (used in dd mode)
     uint32_t  dd_block_size; // Size of the base block in dd mode
     uint64_t orig_file_size; // size of the original file

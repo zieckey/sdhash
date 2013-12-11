@@ -85,6 +85,8 @@ bloom_filter::bloom_filter(string indexfilename){
         ifs.read((char*)bf_comp,comp_size);
         // decompress.      
         int32_t result=this->decompress(bf_comp);
+        if (result < 0) // failed to parse
+            throw -2;
         free(bf_comp);
     } else 
        throw -1; // failed to read
@@ -97,8 +99,11 @@ bloom_filter::bloom_filter(string indexfilename){
        Experimental: sized for sdbf 256-byte bloom filters at the moment
     \param data buffer of bloom filter data
     \param size of bloom filter data
+    \param id identifier for clustering bloom filters
+    \param bf_elem_ct # of elements in filter
+    \param hamming weight of filter
 */
-bloom_filter::bloom_filter(uint8_t* data, uint64_t size) {
+bloom_filter::bloom_filter(uint8_t* data, uint64_t size, int id, int bf_elem_ct, uint16_t hamming) {
     // this makes several testing assumptions.  
     // this is for 256-byte BFs,
     // and elem_ct = 192, bit_mask=2047 (pre-calculated)
@@ -106,7 +111,9 @@ bloom_filter::bloom_filter(uint8_t* data, uint64_t size) {
     bit_mask=2047;
     bf_size=size;
     hash_count=5;
-    bf_elem_count=192; // could also be 160
+    bf_elem_count=bf_elem_ct; // could also be 160
+    bl_id = id;
+    this->hamming = hamming;
     bf=(uint8_t*)malloc(256);
     memcpy(bf,data,256);
     // marker for non-destructive destroy?
@@ -145,8 +152,8 @@ double bloom_filter::bits_per_elem() { return (double) (bf_size << 3)/bf_elem_co
 */
 char *
 bloom_filter::compress() {
-    char *dest=(char*)malloc(40*MB);
-    int res = LZ4_compress_limitedOutput((const char*)bf,dest,bf_size,40*MB);
+    char *dest=(char*)malloc(160*MB);
+    int res = LZ4_compress_limitedOutput((const char*)bf,dest,bf_size,160*MB);
     if (res == 0) {
     comp_size = 0;
     free(dest);
@@ -216,6 +223,15 @@ bloom_filter::set_name(string name) {
      setname = name;
 }
 
+int 
+bloom_filter::bloom_id() {
+    return bl_id;
+}
+
+void 
+bloom_filter::set_bloom_id(int id) {
+    this->bl_id = id;
+}
 /**
    Folds bloom filter by half N times by or'ing the 
    second half of the bloom filter onto the first half. 
@@ -224,12 +240,11 @@ bloom_filter::set_name(string name) {
 void
 bloom_filter::fold(uint32_t times){
     // probably also need some sort of mutex while this happens
-    int i,j;
     // size divided by 8,to use 64-bit chunks, and cast the bf 
     uint64_t rsize = bf_size/8;
     uint64_t *bf_64 = (uint64_t *)bf;
-    for (i=0; i<times; i++) {
-        for (j=0;j<rsize/2;j++) 
+    for (uint32_t i=0; i<times; i++) {
+        for (uint64_t j=0;j<rsize/2;j++) 
             bf_64[j] |= bf_64[j+(rsize/2)];
         rsize=rsize/2;
     if (rsize == 64) 
@@ -261,7 +276,7 @@ bloom_filter::add(bloom_filter *other) {
     uint64_t *bf2_64 = (uint64_t *)other->bf;
     if (other->bf_size != bf_size) 
     return 1; // must add two of same size
-    for (int j=0;j < bf_size/8;j++)
+    for (uint32_t j=0;j < bf_size/8;j++)
     bf_64[j]|=bf2_64[j];
     return 0;
 }

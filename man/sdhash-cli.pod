@@ -39,20 +39,9 @@ Use '-1' to display all comparisons.
 Uses a sampling of filters to perform queries, which speeds up
 query results significantly.  Used for query-mode only.
 
-=item B<--search-all> 
+=item B<--verbose> 
 
-Produces matches by searching individual digests after any set-level match has been made. Does not generate a saved set of hashes.
-
-=item B<--search-first> 
-
-Produces matches by searching the first matched set found in the index.  Can be 
-quicker than B<--search-all> but less complete. Does not generate a saved set of 
-hashes.
-
-
-=item B<-w>, B<--warnings> 
-
-Displays warnings.
+Displays warnings
 
 =back
 
@@ -77,18 +66,6 @@ Using -b will generate block-based hash digests which are useful for processing 
 B<sdhash-cli> [options] file1 file2 file4 foo* 
 
 B<sdhash-cli> B<--block-size> 16 image.dd
-
-=back
-
-=item B<-f>, B<--hash-list> <filelist.txt>
-
-File mode reads a list of files to be hashed from given file.  File should be unix formatted 
-with one filename per line.  Hashes are saved to a set associated with the list filename.
-
-=over 4 
-
-B<sdhash-cli> B<--hash-list> listtohash.txt
-B<sdhash-cli> B<--block-size> 16 B<-f> listtohash.txt
 
 =back
 
@@ -157,14 +134,13 @@ server to provide a fast lookup mechanism useful for driving data filtering.
 Searching does not generate a saved set of digests; it generates a results set.
 Results can be retrieved by using B<--results-list> B<--type> indexing.
 
-=item B<--search-all> 
+=item B<--index-search> 
 
-Produces matches by searching individual digests after any set-level match has been made. 
+Produces matches by searching set-level indexes.
 
-=item B<--search-first> 
+=item B<--index> 
 
-Produces matches by searching the first matched set found in the index.  Can be 
-quicker than B<--search-all> but less complete. 
+Hashing option, generate and save indexes while creating sdbf hashes.
 
 =back
 

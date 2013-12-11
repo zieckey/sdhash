@@ -17,7 +17,7 @@
 #include "../sdbf/sdbf_class.h"
 
 #define SDBF_VERSION    3 
-#define VERSION_INFO    "sdhash 3.1 by Vassil Roussev, Candice Quates, December 2012"
+#define VERSION_INFO    "sdhash 3.3 by Vassil Roussev, Candice Quates [sdhash.org] 07/2013"
 
 
 // Command line options
@@ -38,8 +38,8 @@ typedef struct {
     uint32_t  warnings;
     int32_t  dd_block_size;
     uint32_t  sample_size;
-	uint32_t  verbose;
-	uint64_t  segment_size;
-	char *filename;
+    uint32_t  verbose;
+    uint64_t  segment_size;
+    char *filename;
 } sdbf_parameters_t;
 

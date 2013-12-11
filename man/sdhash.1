@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SDHASH 1"
-.TH SDHASH 1 "2012-12-07" "" ""
+.TH SDHASH 1 "2013-07-16" "" ""
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -143,7 +143,7 @@ two objects are to each other.
 \&\fBsdhash\fR uses parallel processing to efficiently process large quantities of data
 and provides options for sampling to speed up queries.
 .PP
-\&\fBsdhash\fR has three modes: generation, comparison, and searching.
+\&\fBsdhash\fR has three modes: generation, comparison, and index searching.
 .SH "EXAMPLES"
 .IX Header "EXAMPLES"
 \&\fBsdhash\fR file1 file2 file3...
@@ -155,19 +155,19 @@ Generation mode produces digests for the files given on the command line.
 In comparison mode the contents of two sets of sdbf digests are compared
 to produce a confidence score between \-1 and 100.
 .PP
-\&\fBsdhash\fR \-\-search\-deep \-\-index\-dir=references/ file1 file2 file3
+\&\fBsdhash\fR \-\-index\-search=references/ file1 file2 file3
 .PP
 Searching a reference set gives how many features in the hashed files
-have matches in the indexed digests.  It is often faster than full comparisons.
+have matches in the digest indexes.
 .SH "OPTIONS"
 .IX Header "OPTIONS"
 .IP "\fB\-\-verbose\fR" 4
 .IX Item "--verbose"
 Displays (lots of) helpful output on every stage of the hashing process.
-.IP "\fB\-f\fR, \fB\-\-hash\-list\fR <filelist.txt>" 4
-.IX Item "-f, --hash-list <filelist.txt>"
+.IP "\fB\-f\fR, \fB\-\-target\-list\fR <filelist.txt>" 4
+.IX Item "-f, --target-list <filelist.txt>"
 Reads list of files to be hashed from given file.  File should be unix formatted 
-with one filename per line.  Applies to generate mode and generate and compare mode.
+with one filename per line.
 .IP "\fB\-\fR" 4
 .IX Item "-"
 Reads input to be hashed from stdin.  By default uses 16kb blocks and supports
@@ -177,7 +177,7 @@ threading.
 Searches any directories given at the command line for files to hash, recursively.
 .IP "\fB\-o\fR, \fB\-\-output\fR <filename>" 4
 .IX Item "-o, --output <filename>"
-When creating hashes, sends output to named sdbf files and indexes.
+When creating hashes or comparing, sends output to named sdbf files and indexes.
 .IP "\fB\-b\fR, \fB\-\-block\-size\fR <N>" 4
 .IX Item "-b, --block-size <N>"
 Configures block mode during hash generation.  To disable block mode, use \-b 0. 
@@ -185,8 +185,8 @@ Block mode is turned on for any files larger than 16MB, using 16KB blocks.
 We suggest using \-b 4 for memory dumps in 4KB blocks.
 .IP "\fB\-p\fR, \fB\-\-thread\-count\fR <N>" 4
 .IX Item "-p, --thread-count <N>"
-Use N threads.  Set this to the number of hardware threads available
-on the local machine.  Available for all modes.
+Use N threads.  By default sdhash uses all available cores/threads
+on the local machine.  This may be used to dial back the multithreading.
 .IP "\fB\-t\fR, \fB\-\-threshold\fR <\-1\-100>" 4
 .IX Item "-t, --threshold <-1-100>"
 Sets a confidence threshold for comparisions.  Use this to filter results
@@ -206,25 +206,21 @@ Use '\-1' to display all comparisons.
 .IX Item "-s, --sample-size <1-16>"
 Uses a sampling of filters to perform queries, which speeds up
 query results significantly.  Used for query-mode only.
-.IP "\fB\-n\fR, \fB\-\-name\fR <some name>" 4
-.IX Item "-n, --name <some name>"
-Sets the hash name when hashing from stdin.
 .IP "\fB\-z\fR, \fB\-\-segment\-size\fR <\s-1NNN\s0>" 4
 .IX Item "-z, --segment-size <NNN>"
 Sets the default segment-size in \s-1MB\s0 to split files/streams into prior to hashing.  
 Default is 128MB chunks.  Disable segmentation by passing 0 as the argument.
-.IP "\fB\-m\fR, \fB\-\-heat\-map\fR" 4
-.IX Item "-m, --heat-map"
-Displays a heat-map of matches while in comparision or query mode. Heat map is a debugging 
-or sanity check feature which works for single-threaded comparisons only.
-.IP "\fB\-w\fR, \fB\-\-warnings\fR" 4
-.IX Item "-w, --warnings"
-Displays warnings.
+.IP "\fB\-\-separator\fR <pipe|csv|tab>" 4
+.IX Item "--separator <pipe|csv|tab>"
+Changes the output separator for comparisons.  Default separators is pipe, csv and tab are also supported.
+.IP "\fB\-\-hash\-name\fR <some name>" 4
+.IX Item "--hash-name <some name>"
+Sets the hash name when hashing from stdin.
 .IP "\fB\-\-validate\fR <files>" 4
 .IX Item "--validate <files>"
 Checks if the given sdbf files are valid.
-.IP "\fB\-C\fR, \fB\-\-config\fR <sdhash.cfg>" 4
-.IX Item "-C, --config <sdhash.cfg>"
+.IP "\fB\-\-config\fR <sdhash.cfg>" 4
+.IX Item "--config <sdhash.cfg>"
 Reads options from configuration file.  Any option from the usage statement
 can be set in the configuration file.
 .IP "\fBsdhash.cfg\fR" 4
@@ -259,6 +255,7 @@ all files given to it on the command line, all files in the list of filenames pa
 .RS 4
 .Sp
 Using \-b will generate block-based hash digests which are useful for processing disk images and memory dumps.
+\&\fBsdhash\fR automatically generates block-based hash digests for files >=16MB.
 .Sp
 .RS 4
 \&\fBsdhash\fR \fB\-\-block\-size\fR 16 image.dd
@@ -268,7 +265,7 @@ Using \-b will generate block-based hash digests which are useful for processing
 .RE
 .IP "\fB\-g\fR, \fB\-\-gen\-compare\fR <files>" 4
 .IX Item "-g, --gen-compare <files>"
-This mode generates digests for all files given, and compares them each with all of the others.
+This mode generates digests for all files given, and compares them each with all of the others.  It does not save the hashes to disk.
 .RS 4
 .Sp
 .RS 4
@@ -279,8 +276,10 @@ This mode generates digests for all files given, and compares them each with all
 .RE
 .IP "\fB\s-1COMPARISON\s0\fR" 4
 .IX Item "COMPARISON"
-\&\fB\-c\fR, \fB\-\-compare\fR <file.sdbf>
-.Sp
+.PD 0
+.IP "\fB\-c\fR, \fB\-\-compare\fR <file.sdbf>" 4
+.IX Item "-c, --compare <file.sdbf>"
+.PD
 Comparison mode loads a file of digests which was created by capturing the output
 of generation mode.  It then compares each digest to all other digests in the loaded
 file.
@@ -309,15 +308,13 @@ option, and compares each digest in the query to each digest in the target.
 .IP "\fB\s-1SEARCHING\s0\fR" 4
 .IX Item "SEARCHING"
 The following set of options is for using the \fBsdhash\fR searching functionality.
-\&\fBsdhash\fR will generate a reference set upon first hashing which can be used
-to test for the presence of reference data in other sources, more quickly than
-with traditional hash comparisons due to indexes being present for small portions
-of data.  Searching indexes does not generate digests to be saved.
+\&\fBsdhash\fR can generate a reference set upon first hashing which can be used
+to test for the presence of reference data in other sources.  Searching indexes does not generate digests to be saved.
 .IP "\fB\-\-index\fR" 4
 .IX Item "--index"
 Generate a reference set with indexes while hashing.  Can be used with
-\&\fB\-\-output\fR option only.  This option will split reference data into parts
-for fast searching automatically.
+\&\fB\-\-output\fR option only.  This option will split reference data into 640mb
+chunks in the process.
 .RS 4
 .Sp
 .RS 4
@@ -326,16 +323,10 @@ for fast searching automatically.
 .RE
 .RS 4
 .RE
-.IP "\fB\-\-index\-dir\fR <directory>" 4
-.IX Item "--index-dir <directory>"
+.IP "\fB\-\-index\-search\fR <directory>" 4
+.IX Item "--index-search <directory>"
 Sets the location of the reference set and indexes for index-searching.
-.IP "\fB\-\-search\-all\fR" 4
-.IX Item "--search-all"
-Produces matches by searching individual digests after any set-level match has been made.
-.IP "\fB\-\-search\-first\fR" 4
-.IX Item "--search-first"
-Produces matches by searching the first matched set found in the index.  Can be quicker
-than \fB\-\-search\-all\fR but less complete.
+Searches indexes and returns matches at the set-level.
 .SH "AUTHORS"
 .IX Header "AUTHORS"
 \&\fBsdhash\fR was written by Vassil Roussev <vassil@roussev.net> and Candice Quates <candice@egobsd.org>. http://sdhash.org/

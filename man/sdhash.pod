@@ -16,7 +16,7 @@ two objects are to each other.
 B<sdhash> uses parallel processing to efficiently process large quantities of data
 and provides options for sampling to speed up queries.   
 
-B<sdhash> has three modes: generation, comparison, and searching.
+B<sdhash> has three modes: generation, comparison, and index searching.
 
 =head1 EXAMPLES
 
@@ -29,10 +29,10 @@ B<sdhash> --compare set1.sdbf set2.sdbf
 In comparison mode the contents of two sets of sdbf digests are compared
 to produce a confidence score between -1 and 100.
 
-B<sdhash> --search-deep --index-dir=references/ file1 file2 file3 
+B<sdhash> --index-search=references/ file1 file2 file3 
 
 Searching a reference set gives how many features in the hashed files
-have matches in the indexed digests.  It is often faster than full comparisons.
+have matches in the digest indexes. 
 
 =head1 OPTIONS
 
@@ -42,10 +42,10 @@ have matches in the indexed digests.  It is often faster than full comparisons.
 
 Displays (lots of) helpful output on every stage of the hashing process.
 
-=item B<-f>, B<--hash-list> <filelist.txt>
+=item B<-f>, B<--target-list> <filelist.txt>
 
 Reads list of files to be hashed from given file.  File should be unix formatted 
-with one filename per line.  Applies to generate mode and generate and compare mode.
+with one filename per line. 
 
 =item B<-> 
 
@@ -58,7 +58,7 @@ Searches any directories given at the command line for files to hash, recursivel
 
 =item B<-o>, B<--output> <filename>
 
-When creating hashes, sends output to named sdbf files and indexes.
+When creating hashes or comparing, sends output to named sdbf files and indexes.
 
 =item B<-b>, B<--block-size> <N>
 
@@ -68,9 +68,8 @@ We suggest using -b 4 for memory dumps in 4KB blocks.
 
 =item B<-p>, B<--thread-count> <N>
 
-Use N threads.  Set this to the number of hardware threads available
-on the local machine.  Available for all modes.
-
+Use N threads.  By default sdhash uses all available cores/threads
+on the local machine.  This may be used to dial back the multithreading.
 
 =item B<-t>, B<--threshold> <-1-100>
 
@@ -91,33 +90,27 @@ B<sdhash> B<--threshold> '-1' B<--compare> output.sdbf
 Uses a sampling of filters to perform queries, which speeds up
 query results significantly.  Used for query-mode only.
 
-=item B<-n>, B<--name> <some name> 
-
-Sets the hash name when hashing from stdin.  
-
 =item B<-z>, B<--segment-size> <NNN> 
 
 Sets the default segment-size in MB to split files/streams into prior to hashing.  
 Default is 128MB chunks.  Disable segmentation by passing 0 as the argument.
 
-=item B<-m>, B<--heat-map> 
+=item B<--separator> <pipe|csv|tab>
 
-Displays a heat-map of matches while in comparision or query mode. Heat map is a debugging 
-or sanity check feature which works for single-threaded comparisons only.  
+Changes the output separator for comparisons.  Default separators is pipe, csv and tab are also supported.  
 
-=item B<-w>, B<--warnings> 
+=item B<--hash-name> <some name> 
 
-Displays warnings.
+Sets the hash name when hashing from stdin.  
 
 =item B<--validate> <files>
 
 Checks if the given sdbf files are valid.
 
-=item B<-C>, B<--config> <sdhash.cfg>
+=item B<--config> <sdhash.cfg>
 
 Reads options from configuration file.  Any option from the usage statement
 can be set in the configuration file.
-
 
 =item B<sdhash.cfg> 
 
@@ -150,6 +143,7 @@ B<sdhash> [options] file1 file2 file4 foo*
 =back
  
 Using -b will generate block-based hash digests which are useful for processing disk images and memory dumps.
+B<sdhash> automatically generates block-based hash digests for files >=16MB.
 
 =over 4
 
@@ -159,7 +153,7 @@ B<sdhash> B<--block-size> 16 image.dd
 
 =item B<-g>, B<--gen-compare> <files>
 
-This mode generates digests for all files given, and compares them each with all of the others.
+This mode generates digests for all files given, and compares them each with all of the others.  It does not save the hashes to disk.
 
 =over 4
 
@@ -171,7 +165,7 @@ B<sdhash> [options] B<-g> file1 file2 file3
 =item B<COMPARISON>
 
 
-B<-c>, B<--compare> <file.sdbf> 
+=item B<-c>, B<--compare> <file.sdbf> 
 
 Comparison mode loads a file of digests which was created by capturing the output
 of generation mode.  It then compares each digest to all other digests in the loaded
@@ -200,16 +194,14 @@ B<sdhash> B<--sample-size> 4 B<--query> query.sdbf target.sdbf
 
 
 The following set of options is for using the B<sdhash> searching functionality.
-B<sdhash> will generate a reference set upon first hashing which can be used
-to test for the presence of reference data in other sources, more quickly than
-with traditional hash comparisons due to indexes being present for small portions
-of data.  Searching indexes does not generate digests to be saved.
+B<sdhash> can generate a reference set upon first hashing which can be used
+to test for the presence of reference data in other sources.  Searching indexes does not generate digests to be saved.
 
 =item B<--index>
 
 Generate a reference set with indexes while hashing.  Can be used with
-B<--output> option only.  This option will split reference data into parts
-for fast searching automatically.
+B<--output> option only.  This option will split reference data into 640mb
+chunks in the process.
 
 =over 4
 
@@ -217,18 +209,10 @@ B<sdhash> B<--index> B<--deep> directory B<--output> outputdir/name
 
 =back
 
-=item B<--index-dir> <directory>
+=item B<--index-search> <directory>
 
 Sets the location of the reference set and indexes for index-searching.
-
-=item B<--search-all> 
-
-Produces matches by searching individual digests after any set-level match has been made.
-
-=item B<--search-first> 
-
-Produces matches by searching the first matched set found in the index.  Can be quicker
-than B<--search-all> but less complete.
+Searches indexes and returns matches at the set-level.  
 
 =back
 
