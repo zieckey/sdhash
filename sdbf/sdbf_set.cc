@@ -126,6 +126,13 @@ sdbf_set::~sdbf_set() {
     delete bf_vector;
 }
 
+void sdbf_set::destory(sdbf_set* &set) {
+    for (size_t n=0;n< set->size(); n++)
+      delete set->at(n);
+    delete set;
+    set = NULL;
+}
+
 /**
     Accessor method for a single sdbf* in this set
     \param pos position 0 to size()

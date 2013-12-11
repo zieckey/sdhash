@@ -44,6 +44,14 @@ std::string read_file(const char* fname) {
     return r;
 }
 
+double utcsecond()
+{
+    struct timeval tv;
+    gettimeofday( &tv, NULL );
+    return (double)(tv.tv_sec) + ((double)(tv.tv_usec))/1000000.0f;
+}
+
+
 
 // Global parameter configuration defaults
 sdbf_parameters_t sdbf_sys = {
@@ -279,12 +287,21 @@ int main( int argc, char **argv) {
             // load second set for comparison
             std::string resultlist;
             std::string against_sdbf_buffer = read_file(inputlist[1].c_str());
-            int loop = 1;
+            double begin = utcsecond();
+            int loop = 1000000;
             for (int i = 0; i < loop; ++i) {
                 set2=new sdbf_set(against_sdbf_buffer.data(), against_sdbf_buffer.size());
                 resultlist=set1->compare_to(set2,sdbf_sys.output_threshold, sdbf_sys.sample_size);
-            cout << resultlist;
+                sdbf_set::destory(set2);
             }
+            double end = utcsecond();
+            cout << "cost=" << end - begin << " qps=" << loop/(end-begin) << " loop=" << loop << " result:" << resultlist;
+
+            //sdbf_set *set2_cmp=new sdbf_set(inputlist[1].c_str());
+            //resultlist=set1->compare_to(set2_cmp,sdbf_sys.output_threshold, sdbf_sys.sample_size);
+            //cout << "result:" << resultlist;
+            //cout << "new:set2:[" << set2 << "]\n";
+            //cout << "old:set2:[" << set2_cmp << "]\n";
         } else  {
             cerr << "sdhash: ERROR: Comparison requires 1 or 2 arguments." << endl;
             delete set1;

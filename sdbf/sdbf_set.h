@@ -23,32 +23,34 @@ public:
 	/// creates blank sdbf_set with index
 	sdbf_set(bloom_filter *index); 
 
-	/// loads an sdbf_set from a file
-	sdbf_set(const char *fname); 
+    /// loads an sdbf_set from a file
+    sdbf_set(const char *fname); 
 
-	/// loads an sdbf_set from a memory buffer
-	sdbf_set(const char *buffer, size_t buffer_length); 
 
-	/// destructor
+    /// Add by weizili
+    /// loads an sdbf_set from a memory buffer
+    sdbf_set(const char *buffer, size_t buffer_length); 
+
+    /// destructor
     ~sdbf_set();
 
-	/// accessor method for individual hashes
-	class sdbf* at(uint32_t pos); 
+    /// accessor method for individual hashes
+    class sdbf* at(uint32_t pos); 
 
-	/// adds a single hash to this set
-	void add(class sdbf *hash);
+    /// adds a single hash to this set
+    void add(class sdbf *hash);
 
-	/// adds the items in another set to this set
-	void add(sdbf_set *hashset);
+    /// adds the items in another set to this set
+    void add(sdbf_set *hashset);
 
 
-	/// Returns the number of sdbfs in this set
-	uint64_t size( ) ; 
+    /// Returns the number of sdbfs in this set
+    uint64_t size( ) ; 
 
-	/// Computes the data size of this set
-	uint64_t input_size( ) ; 
-        
-        uint64_t filter_count();
+    /// Computes the data size of this set
+    uint64_t input_size( ) ; 
+
+    uint64_t filter_count();
 
 	/// Compares all objects in a set to each other
 	std::string compare_all(int32_t threshold); 
@@ -74,6 +76,10 @@ public:
 
 	/// setup bloom filter vector
 	void vector_init();
+
+    /// Add by weizili
+    /// free a sdbf_set
+    static void destory(sdbf_set* &set);
 
 public:
     /// index for this set 
