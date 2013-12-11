@@ -1,4 +1,6 @@
 *.swp
+*.a
+*.so
 sdbf/*.d
 sdbf/*.o
 sdbf/libsdbf.a

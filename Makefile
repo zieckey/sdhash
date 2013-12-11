@@ -4,8 +4,8 @@ CC=gcc
 CXX=g++
 AR=ar
 ARFLAGS=cru
-CFLAGS = -g -O3 -fPIC -c -msse4.2 -fno-strict-aliasing -D_FILE_OFFSET_BITS=64 -D_LARGE_FILE_API -D_BSD_SOURCE -I./external -MMD
-LDFLAGS = -L . -L./external/stage/lib -lboost_regex -lboost_system -lboost_filesystem -lboost_program_options -lc -lm -lcrypto -lboost_thread -lpthread
+CFLAGS = -g -c -fPIC -fopenmp -msse4.2 -O3 -fno-strict-aliasing -D_FILE_OFFSET_BITS=64 -D_LARGE_FILE_API -D_BSD_SOURCE -I./external 
+LDFLAGS = -fopenmp -L . -L./external/stage/lib -lboost_system -lboost_filesystem -lboost_program_options -lc -lm -lcrypto -lboost_thread -lpthread 
 
 TARGET=sdhash
 
