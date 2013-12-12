@@ -288,7 +288,7 @@ int main( int argc, char **argv) {
             std::string resultlist;
             std::string against_sdbf_buffer = read_file(inputlist[1].c_str());
             double begin = utcsecond();
-            int loop = 1000000;
+            int loop = 1000;
             for (int i = 0; i < loop; ++i) {
                 set2=new sdbf_set(against_sdbf_buffer.data(), against_sdbf_buffer.size());
                 resultlist=set1->compare_to(set2,sdbf_sys.output_threshold, sdbf_sys.sample_size);
